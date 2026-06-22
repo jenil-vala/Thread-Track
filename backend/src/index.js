@@ -46,8 +46,34 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong on the server' });
 });
 
+const db = require('./db/knex');
+const bcrypt = require('bcryptjs');
+
+// Automatically seed a default admin user if the database has no registered users
+async function seedAdminIfEmpty() {
+  try {
+    const [{ count }] = await db('users').count('id as count');
+    if (parseInt(count) === 0) {
+      console.log('No users found in database. Initializing default admin user...');
+      const passwordHash = await bcrypt.hash('admin123', 10);
+      await db('users').insert({
+        name: 'Admin Developer',
+        mobile: '9879312949',
+        email: 'admin@threadtrack.com',
+        password_hash: passwordHash,
+        role: 'Admin',
+        active: true
+      });
+      console.log('Default admin user created successfully: mobile "9879312949", password "admin123"');
+    }
+  } catch (error) {
+    console.error('Failed to verify or seed default admin user:', error);
+  }
+}
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await seedAdminIfEmpty();
   console.log(`=========================================`);
   console.log(`THREAD TRACK BACKEND RUNNING ON PORT ${PORT}`);
   console.log(`=========================================`);
