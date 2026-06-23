@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
         db_name: dbName,
         active: true
       })
-      .returning(['id', 'name', 'mobile', 'email', 'role', 'active', 'db_name', 'created_at']);
+      .returning('*');
 
     // Create database for all new users so they start with a clean database
     try {
@@ -143,7 +143,7 @@ router.put('/:id', async (req, res) => {
     const [updatedUser] = await db('users')
       .where({ id: userId })
       .update(updates)
-      .returning(['id', 'name', 'mobile', 'email', 'role', 'active', 'db_name', 'updated_at']);
+      .returning('*');
 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     await logAction(
