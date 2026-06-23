@@ -95,6 +95,16 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Safety check: prevent deactivating yourself
+    if (active === false && parseInt(userId) === req.user.id) {
+      return res.status(400).json({ error: 'You cannot deactivate your own account' });
+    }
+
+    // Safety check: prevent demoting your own role
+    if (role !== undefined && role !== 'Admin' && parseInt(userId) === req.user.id) {
+      return res.status(400).json({ error: 'You cannot demote your own admin account role' });
+    }
+
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (role !== undefined) updates.role = role;

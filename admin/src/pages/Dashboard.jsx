@@ -13,8 +13,10 @@ import {
   AlertCircle,
   ShieldCheck,
   Search,
-  XCircle
+  XCircle,
+  Trash2
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const formatDateDMY = (dateInput) => {
   if (!dateInput) return '-';
@@ -27,6 +29,7 @@ const formatDateDMY = (dateInput) => {
 };
 
 const Dashboard = ({ activeTab, setActiveTab }) => {
+  const { user: currentUser } = useAuth();
   const [usersList, setUsersList] = useState([]);
   const [backupsList, setBackupsList] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -143,6 +146,26 @@ const Dashboard = ({ activeTab, setActiveTab }) => {
       fetchData();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to toggle account status.');
+    }
+  };
+
+  // Handle Delete User
+  const handleDeleteUser = async (userObj) => {
+    if (userObj.id === currentUser?.id) {
+      setError('You cannot delete your own account.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to permanently delete user "${userObj.name}"?`)) {
+      return;
+    }
+    setError('');
+    setSuccessMsg('');
+    try {
+      await api.delete(`/users/${userObj.id}`);
+      setSuccessMsg(`User account for ${userObj.name} deleted successfully.`);
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete user account.');
     }
   };
 
@@ -286,14 +309,31 @@ const Dashboard = ({ activeTab, setActiveTab }) => {
                       </button>
                       <button
                         onClick={() => handleToggleUserStatus(u)}
+                        disabled={u.id === currentUser?.id}
                         className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                          u.active
+                          u.id === currentUser?.id
+                            ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : u.active
                             ? 'bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-100'
                             : 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100'
                         }`}
+                        title={u.id === currentUser?.id ? 'You cannot deactivate your own account' : ''}
                       >
                         {u.active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                         <span>{u.active ? 'Deactivate' : 'Activate'}</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(u)}
+                        disabled={u.id === currentUser?.id}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                          u.id === currentUser?.id
+                            ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white'
+                        }`}
+                        title={u.id === currentUser?.id ? 'You cannot delete your own account' : ''}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
                       </button>
                     </td>
                   </tr>
