@@ -81,6 +81,11 @@ async function seedAdminIfEmpty() {
 async function runMigrations() {
   try {
     console.log('Running central database migrations...');
+    try {
+      await db.migrate.forceFreeMigrationsLock();
+    } catch (lockErr) {
+      console.warn('Failed to force free migration lock on startup:', lockErr.message);
+    }
     await db.migrate.latest();
     console.log('Central database migrations completed successfully.');
   } catch (error) {

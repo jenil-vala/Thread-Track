@@ -175,6 +175,11 @@ async function createTenantDatabase(dbNameOrMobile) {
     
     const tenantDb = knex(config);
     try {
+      try {
+        await tenantDb.migrate.forceFreeMigrationsLock();
+      } catch (lockErr) {
+        console.warn('Failed to force free migration lock:', lockErr.message);
+      }
       await tenantDb.migrate.latest();
       console.log(`Migrations executed successfully on database "${dbName}".`);
       initializedTenants.add(dbName);
@@ -199,6 +204,11 @@ async function createTenantDatabase(dbNameOrMobile) {
     
     const tenantDb = knex(config);
     try {
+      try {
+        await tenantDb.migrate.forceFreeMigrationsLock();
+      } catch (lockErr) {
+        console.warn('Failed to force free migration lock:', lockErr.message);
+      }
       await tenantDb.migrate.latest();
       console.log(`Migrations executed successfully on schema "${dbName}".`);
       initializedTenants.add(dbName);

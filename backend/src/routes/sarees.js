@@ -118,7 +118,7 @@ router.get('/:id', async (req, res) => {
     // Get workflow history
     const history = await db('workflow_history as h')
       .join('vendors as v', 'h.vendor_id', 'v.vendor_id')
-      .leftJoin('users as u', 'h.updated_by', 'u.id')
+      .leftJoin('public.users as u', 'h.updated_by', 'u.id')
       .select('h.*', 'v.vendor_name', 'v.vendor_type', 'u.name as updater_name')
       .where('h.saree_id', sareeId)
       .orderBy('h.sent_date', 'asc')
