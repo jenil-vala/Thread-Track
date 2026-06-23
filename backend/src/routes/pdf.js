@@ -17,6 +17,44 @@ const fonts = {
 
 const printer = new PdfPrinter(fonts);
 
+// Helper function to return the aligned footer logo and title on a single line
+const getFooterLogo = () => ({
+  margin: [0, 30, 0, 0],
+  alignment: 'center',
+  columns: [
+    { width: '*', text: '' },
+    {
+      width: 'auto',
+      table: {
+        widths: [24],
+        body: [
+          [
+            {
+              text: 'TT',
+              color: 'white',
+              fillColor: '#4f46e5',
+              alignment: 'center',
+              bold: true,
+              fontSize: 10,
+              margin: [0, 3, 0, 3]
+            }
+          ]
+        ]
+      },
+      layout: 'noBorders'
+    },
+    {
+      width: 'auto',
+      text: 'Thread Track',
+      fontSize: 11,
+      bold: true,
+      color: '#334155',
+      margin: [8, 4, 0, 0]
+    },
+    { width: '*', text: '' }
+  ]
+});
+
 // All PDF routes require authentication
 router.use(authenticateToken);
 
@@ -113,37 +151,12 @@ router.get('/job-work-slip/:historyId', async (req, res) => {
             { text: '___________________\nVendor Signature', alignment: 'right' }
           ]
         },
-        {
-          margin: [0, 30, 0, 0],
-          alignment: 'center',
-          stack: [
-            {
-              table: {
-                widths: [24],
-                body: [
-                  [
-                    {
-                      text: 'TT',
-                      color: 'white',
-                      fillColor: '#4f46e5',
-                      alignment: 'center',
-                      bold: true,
-                      fontSize: 10,
-                      margin: [0, 3, 0, 3]
-                    }
-                  ]
-                ]
-              },
-              layout: 'noBorders',
-              alignment: 'center'
-            },
-            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
-          ]
-        }
+        getFooterLogo()
       ],
       defaultStyle: {
         font: 'Helvetica',
-        fontSize: 11
+        fontSize: 11,
+        lineHeight: 1.4
       },
       styles: {
         header: {
@@ -244,37 +257,12 @@ router.get('/payment-receipt/:paymentId', async (req, res) => {
             { text: '___________________\nVendor Signature', alignment: 'right' }
           ]
         },
-        {
-          margin: [0, 30, 0, 0],
-          alignment: 'center',
-          stack: [
-            {
-              table: {
-                widths: [24],
-                body: [
-                  [
-                    {
-                      text: 'TT',
-                      color: 'white',
-                      fillColor: '#4f46e5',
-                      alignment: 'center',
-                      bold: true,
-                      fontSize: 10,
-                      margin: [0, 3, 0, 3]
-                    }
-                  ]
-                ]
-              },
-              layout: 'noBorders',
-              alignment: 'center'
-            },
-            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
-          ]
-        }
+        getFooterLogo()
       ],
       defaultStyle: {
         font: 'Helvetica',
-        fontSize: 11
+        fontSize: 11,
+        lineHeight: 1.4
       },
       styles: {
         header: {
@@ -448,37 +436,12 @@ router.get('/vendor-invoice/:vendorId', async (req, res) => {
             { text: '___________________\nVendor Signature', alignment: 'right' }
           ]
         },
-        {
-          margin: [0, 30, 0, 0],
-          alignment: 'center',
-          stack: [
-            {
-              table: {
-                widths: [24],
-                body: [
-                  [
-                    {
-                      text: 'TT',
-                      color: 'white',
-                      fillColor: '#4f46e5',
-                      alignment: 'center',
-                      bold: true,
-                      fontSize: 10,
-                      margin: [0, 3, 0, 3]
-                    }
-                  ]
-                ]
-              },
-              layout: 'noBorders',
-              alignment: 'center'
-            },
-            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
-          ]
-        }
+        getFooterLogo()
       ],
       defaultStyle: {
         font: 'Helvetica',
-        fontSize: 10
+        fontSize: 10,
+        lineHeight: 1.4
       },
       styles: {
         header: {
@@ -589,37 +552,12 @@ router.get('/production-report', async (req, res) => {
           },
           layout: 'lightHorizontalLines'
         },
-        {
-          margin: [0, 30, 0, 0],
-          alignment: 'center',
-          stack: [
-            {
-              table: {
-                widths: [24],
-                body: [
-                  [
-                    {
-                      text: 'TT',
-                      color: 'white',
-                      fillColor: '#4f46e5',
-                      alignment: 'center',
-                      bold: true,
-                      fontSize: 10,
-                      margin: [0, 3, 0, 3]
-                    }
-                  ]
-                ]
-              },
-              layout: 'noBorders',
-              alignment: 'center'
-            },
-            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
-          ]
-        }
+        getFooterLogo()
       ],
       defaultStyle: {
         font: 'Helvetica',
-        fontSize: 10
+        fontSize: 10,
+        lineHeight: 1.4
       },
       styles: {
         header: { fontSize: 18, bold: true },
@@ -723,37 +661,12 @@ router.get('/payments-report', async (req, res) => {
           },
           layout: 'lightHorizontalLines'
         },
-        {
-          margin: [0, 30, 0, 0],
-          alignment: 'center',
-          stack: [
-            {
-              table: {
-                widths: [24],
-                body: [
-                  [
-                    {
-                      text: 'TT',
-                      color: 'white',
-                      fillColor: '#4f46e5',
-                      alignment: 'center',
-                      bold: true,
-                      fontSize: 10,
-                      margin: [0, 3, 0, 3]
-                    }
-                  ]
-                ]
-              },
-              layout: 'noBorders',
-              alignment: 'center'
-            },
-            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
-          ]
-        }
+        getFooterLogo()
       ],
       defaultStyle: {
         font: 'Helvetica',
-        fontSize: 10
+        fontSize: 10,
+        lineHeight: 1.4
       },
       styles: {
         header: { fontSize: 18, bold: true },
@@ -879,37 +792,12 @@ router.get('/outstanding-report', async (req, res) => {
           },
           layout: 'lightHorizontalLines'
         },
-        {
-          margin: [0, 30, 0, 0],
-          alignment: 'center',
-          stack: [
-            {
-              table: {
-                widths: [24],
-                body: [
-                  [
-                    {
-                      text: 'TT',
-                      color: 'white',
-                      fillColor: '#4f46e5',
-                      alignment: 'center',
-                      bold: true,
-                      fontSize: 10,
-                      margin: [0, 3, 0, 3]
-                    }
-                  ]
-                ]
-              },
-              layout: 'noBorders',
-              alignment: 'center'
-            },
-            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
-          ]
-        }
+        getFooterLogo()
       ],
       defaultStyle: {
         font: 'Helvetica',
-        fontSize: 10
+        fontSize: 10,
+        lineHeight: 1.4
       },
       styles: {
         header: { fontSize: 18, bold: true },

@@ -56,15 +56,21 @@ async function seedAdminIfEmpty() {
     if (parseInt(count) === 0) {
       console.log('No users found in database. Initializing default admin user...');
       const passwordHash = await bcrypt.hash('admin123', 10);
+      const adminDbName = 'thread_track_9879312949';
       await db('users').insert({
         name: 'Admin Developer',
         mobile: '9879312949',
         email: 'admin@threadtrack.com',
         password_hash: passwordHash,
         role: 'Admin',
+        db_name: adminDbName,
         active: true
       });
       console.log('Default admin user created successfully: mobile "9879312949", password "admin123"');
+
+      // Ensure the default admin user's database is created on first launch
+      const { createTenantDatabase } = require('./db/manager');
+      await createTenantDatabase(adminDbName);
     }
   } catch (error) {
     console.error('Failed to verify or seed default admin user:', error);

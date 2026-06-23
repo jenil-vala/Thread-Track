@@ -207,6 +207,27 @@ const Sarees = () => {
     }
   }, [sendForm.stage_name, sendForm.per_unit_rate, sendForm.flat_cost, selectedSaree]);
 
+  // Auto-select next stage based on selectedSaree current_stage
+  useEffect(() => {
+    if (selectedSaree) {
+      const stageOrder = ['Dyed', 'Embroidery', 'Stitching', 'Diamond', 'Folding', 'Completed'];
+      const currentIndex = stageOrder.indexOf(selectedSaree.current_stage);
+      if (currentIndex !== -1 && currentIndex < stageOrder.length - 1) {
+        const nextStage = stageOrder[currentIndex + 1];
+        if (nextStage !== 'Completed') {
+          setSendForm(prev => ({
+            ...prev,
+            stage_name: nextStage,
+            vendor_id: '',
+            per_unit_rate: '',
+            flat_cost: '',
+            remarks: ''
+          }));
+        }
+      }
+    }
+  }, [selectedSaree]);
+
   // Open Saree Details
   const handleOpenDetails = async (sareeId) => {
     try {
@@ -862,20 +883,20 @@ const Sarees = () => {
                         {/* Stage Detail Card */}
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-indigo-100 transition-all">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-extrabold text-slate-800">{record.stage_name}</span>
-                            <span className="text-[10px] text-slate-400 font-bold">{formatDateDMY(record.sent_date)}</span>
+                            <span className="text-base font-extrabold text-slate-800">{record.stage_name}</span>
+                            <span className="text-xs text-slate-400 font-bold">{formatDateDMY(record.sent_date)}</span>
                           </div>
-                          <div className="mt-1 text-[11px] font-semibold text-indigo-600">
+                          <div className="mt-1 text-sm font-semibold text-indigo-600">
                             {record.vendor_name} ({record.vendor_type})
                           </div>
-                          <div className="mt-2 text-xs font-bold text-slate-600 flex justify-between items-center">
+                          <div className="mt-2 text-sm font-bold text-slate-700 flex justify-between items-center">
                             <span>Cost: ₹{parseFloat(record.work_cost).toLocaleString('en-IN')}</span>
-                            <span className="text-[10px] text-slate-400 font-normal">
+                            <span className="text-xs text-slate-400 font-medium">
                               {record.received_date ? `Recd: ${formatDateDMY(record.received_date)}` : 'Pending'}
                             </span>
                           </div>
                           {record.remarks && (
-                            <div className="mt-2 text-[10px] text-slate-400 font-medium italic border-t border-slate-100 pt-1.5">
+                            <div className="mt-2 text-xs text-slate-400 font-medium italic border-t border-slate-100 pt-1.5">
                               Notes: {record.remarks}
                             </div>
                           )}
@@ -889,22 +910,22 @@ const Sarees = () => {
                                 title: `Job Work Slip — Lot #${selectedSaree.lot_number}`,
                                 filename: `job_work_slip_lot_${selectedSaree.lot_number}_stage_${record.stage_name}.pdf`
                               })}
-                              className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-800 transition-all font-bold"
+                              className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 transition-all font-bold"
                             >
-                              <FileDown className="w-3 h-3" />
+                              <FileDown className="w-3.5 h-3.5" />
                               <span>Slip PDF</span>
                             </button>
 
                             <div className="flex items-center gap-3">
                               <button
                                 onClick={() => handleOpenEditHistory(record)}
-                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold transition-colors"
+                                className="text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-colors"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => handleDeleteHistory(record)}
-                                className="text-[10px] text-rose-500 hover:text-rose-700 font-bold transition-colors"
+                                className="text-xs text-rose-500 hover:text-rose-700 font-bold transition-colors"
                               >
                                 Delete
                               </button>

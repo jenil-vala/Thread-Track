@@ -47,6 +47,8 @@ router.post('/', async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const dbSuffix = mobile.replace(/[^a-zA-Z0-9]/g, '');
+    const dbName = `thread_track_${dbSuffix}_${Date.now()}`;
 
     const [newUser] = await db('users')
       .insert({
@@ -55,14 +57,15 @@ router.post('/', async (req, res) => {
         email: email || null,
         password_hash: passwordHash,
         role,
+        db_name: dbName,
         active: true
       })
-      .returning(['id', 'name', 'mobile', 'email', 'role', 'active', 'created_at']);
+      .returning(['id', 'name', 'mobile', 'email', 'role', 'active', 'db_name', 'created_at']);
 
     // Create database for all new users so they start with a clean database
     try {
       const { createTenantDatabase } = require('../db/manager');
-      await createTenantDatabase(mobile);
+      await createTenantDatabase(dbName);
     } catch (dbError) {
       console.error('Failed to create tenant database, rolling back user insertion:', dbError);
       // Rollback user insertion in central DB to avoid orphaned user records
@@ -119,35 +122,10 @@ router.put('/:id', async (req, res) => {
       updates.password_hash = await bcrypt.hash(password, 10);
     }
 
-    // Rename database if mobile is changed
-    const mobileChanged = mobile !== undefined && mobile !== user.mobile;
-    if (mobileChanged) {
-      const { getTenantDbName, baseDb, renameTenantDbCache } = require('../db/manager');
-      const oldDbName = getTenantDbName(user.mobile);
-      const newDbName = getTenantDbName(mobile);
-      
-      try {
-        // First check if old database exists
-        const checkDb = await baseDb.raw('SELECT 1 FROM pg_database WHERE datname = ?', [oldDbName]);
-        if (checkDb.rows.length > 0) {
-          // Terminate active connections to old database so we can rename it
-          await baseDb.raw(`
-            SELECT pg_terminate_backend(pg_stat_activity.pid)
-            FROM pg_stat_activity
-            WHERE pg_stat_activity.datname = ? AND pid <> pg_backend_pid()
-          `, [oldDbName]);
-          
-          // Rename database
-          await baseDb.raw(`ALTER DATABASE "${oldDbName}" RENAME TO "${newDbName}"`);
-          console.log(`Database renamed from "${oldDbName}" to "${newDbName}".`);
-          
-          // Clear cached connection pool instances
-          renameTenantDbCache(user.mobile, mobile);
-        }
-      } catch (dbError) {
-        console.error('Failed to rename database:', dbError);
-        return res.status(500).json({ error: 'Failed to update database mapping. Mobile number change cancelled.' });
-      }
+    // Lock in the database name permanently in updates if user.db_name is not yet set
+    if (!user.db_name) {
+      const { getTenantDbName } = require('../db/manager');
+      updates.db_name = getTenantDbName(user.mobile);
     }
 
     updates.updated_at = db.fn.now();
@@ -155,7 +133,7 @@ router.put('/:id', async (req, res) => {
     const [updatedUser] = await db('users')
       .where({ id: userId })
       .update(updates)
-      .returning(['id', 'name', 'mobile', 'email', 'role', 'active', 'updated_at']);
+      .returning(['id', 'name', 'mobile', 'email', 'role', 'active', 'db_name', 'updated_at']);
 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     await logAction(

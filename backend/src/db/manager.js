@@ -21,14 +21,17 @@ function getTenantDbName(mobile) {
 
 /**
  * Retrieves or initializes a cached connection pool for the user's specific database
- * @param {string|null} mobile - User's mobile number
+ * @param {string|null} dbNameOrMobile - User's database name or mobile number
  * @returns {import('knex').Knex}
  */
-function getTenantDb(mobile) {
-  if (!mobile) {
+function getTenantDb(dbNameOrMobile) {
+  if (!dbNameOrMobile) {
     return baseDb;
   }
-  const dbName = getTenantDbName(mobile);
+  const dbName = dbNameOrMobile.startsWith('thread_track_')
+    ? dbNameOrMobile
+    : getTenantDbName(dbNameOrMobile);
+
   if (instances[dbName]) {
     return instances[dbName];
   }
@@ -58,10 +61,13 @@ function getTenantDb(mobile) {
 
 /**
  * Programmatically creates a new PostgreSQL database for a user and runs all migration files
- * @param {string} mobile - User's mobile number
+ * @param {string} dbNameOrMobile - User's database name or mobile number
  */
-async function createTenantDatabase(mobile) {
-  const dbName = getTenantDbName(mobile);
+async function createTenantDatabase(dbNameOrMobile) {
+  if (!dbNameOrMobile) return;
+  const dbName = dbNameOrMobile.startsWith('thread_track_')
+    ? dbNameOrMobile
+    : getTenantDbName(dbNameOrMobile);
 
   // 1. Check if database exists in PostgreSQL
   const checkDb = await baseDb.raw('SELECT 1 FROM pg_database WHERE datname = ?', [dbName]);

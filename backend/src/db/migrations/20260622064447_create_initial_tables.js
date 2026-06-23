@@ -12,6 +12,7 @@ exports.up = async function(knex) {
     table.string('password_hash', 255).notNullable();
     table.string('role', 20).defaultTo('User'); // 'Admin', 'User'
     table.boolean('active').defaultTo(true);
+    table.string('db_name', 100).nullable();
     table.timestamps(true, true); // created_at, updated_at
   });
 

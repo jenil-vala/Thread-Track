@@ -34,8 +34,9 @@ function authenticateToken(req, res, next) {
         req.originalUrl.startsWith('/api/auth');
       
       if (!isSystemRoute) {
-        const { getTenantDb, storage } = require('../db/manager');
-        const tenantDb = getTenantDb(user.mobile);
+        const { getTenantDb, getTenantDbName, storage } = require('../db/manager');
+        const dbName = user.db_name || getTenantDbName(user.mobile);
+        const tenantDb = getTenantDb(dbName);
         storage.run(tenantDb, next);
       } else {
         next();
