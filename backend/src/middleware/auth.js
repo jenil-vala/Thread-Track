@@ -34,8 +34,16 @@ function authenticateToken(req, res, next) {
         req.originalUrl.startsWith('/api/auth');
       
       if (!isSystemRoute) {
-        const { getTenantDb, getTenantDbName, storage } = require('../db/manager');
+        const { getTenantDb, getTenantDbName, storage, createTenantDatabase } = require('../db/manager');
         const dbName = user.db_name || getTenantDbName(user.mobile);
+        
+        try {
+          await createTenantDatabase(dbName);
+        } catch (dbError) {
+          console.error('Failed to initialize tenant database on-demand:', dbError);
+          return res.status(500).json({ error: 'Tenant database initialization failed' });
+        }
+
         const tenantDb = getTenantDb(dbName);
         storage.run(tenantDb, next);
       } else {

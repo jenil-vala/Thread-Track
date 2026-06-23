@@ -10,6 +10,7 @@ const env = process.env.NODE_ENV || 'development';
 const baseDb = knex(baseConfig[env]);
 
 let multiTenancyMode = 'schema';
+const initializedTenants = new Set();
 
 /**
  * Detects whether the database user has privileges to run CREATE DATABASE
@@ -119,7 +120,7 @@ function getTenantDb(dbNameOrMobile) {
   if (multiTenancyMode === 'database') {
     config.connection = getRoutedConnection(config.connection, dbName);
   } else {
-    config.searchPath = [dbName, 'public'];
+    config.searchPath = [dbName];
   }
   
   config.migrations = {
@@ -150,6 +151,10 @@ async function createTenantDatabase(dbNameOrMobile) {
     ? dbNameOrMobile
     : getTenantDbName(dbNameOrMobile);
 
+  if (initializedTenants.has(dbName)) {
+    return;
+  }
+
   if (multiTenancyMode === 'database') {
     // 1. Check if database exists in PostgreSQL
     const checkDb = await baseDb.raw('SELECT 1 FROM pg_database WHERE datname = ?', [dbName]);
@@ -172,6 +177,7 @@ async function createTenantDatabase(dbNameOrMobile) {
     try {
       await tenantDb.migrate.latest();
       console.log(`Migrations executed successfully on database "${dbName}".`);
+      initializedTenants.add(dbName);
     } catch (error) {
       console.error(`Migrations failed on database "${dbName}":`, error);
       throw error;
@@ -186,7 +192,7 @@ async function createTenantDatabase(dbNameOrMobile) {
 
     // 2. Initialize schema by running migrations on the new schema
     const config = { ...baseConfig[env] };
-    config.searchPath = [dbName, 'public'];
+    config.searchPath = [dbName];
     config.migrations = {
       directory: path.join(__dirname, 'migrations')
     };
@@ -195,6 +201,7 @@ async function createTenantDatabase(dbNameOrMobile) {
     try {
       await tenantDb.migrate.latest();
       console.log(`Migrations executed successfully on schema "${dbName}".`);
+      initializedTenants.add(dbName);
     } catch (error) {
       console.error(`Migrations failed on schema "${dbName}":`, error);
       throw error;
