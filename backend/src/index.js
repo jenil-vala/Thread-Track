@@ -77,8 +77,22 @@ async function seedAdminIfEmpty() {
   }
 }
 
+// Run database migrations on startup to automatically initialize tables in production
+async function runMigrations() {
+  try {
+    console.log('Running central database migrations...');
+    await db.migrate.latest();
+    console.log('Central database migrations completed successfully.');
+  } catch (error) {
+    console.error('Database migration failed on startup:', error);
+  }
+}
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
+  const { detectMultiTenancyMode } = require('./db/manager');
+  await detectMultiTenancyMode();
+  await runMigrations();
   await seedAdminIfEmpty();
   console.log(`=========================================`);
   console.log(`THREAD TRACK BACKEND RUNNING ON PORT ${PORT}`);

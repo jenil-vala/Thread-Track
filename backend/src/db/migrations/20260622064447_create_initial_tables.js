@@ -3,18 +3,24 @@
  * @returns { Promise<void> }
  */
 exports.up = async function(knex) {
-  // Users table
-  await knex.schema.createTable('users', (table) => {
-    table.increments('id').primary();
-    table.string('name', 100).notNullable();
-    table.string('mobile', 15).notNullable().unique();
-    table.string('email', 100).unique().nullable();
-    table.string('password_hash', 255).notNullable();
-    table.string('role', 20).defaultTo('User'); // 'Admin', 'User'
-    table.boolean('active').defaultTo(true);
-    table.string('db_name', 100).nullable();
-    table.timestamps(true, true); // created_at, updated_at
-  });
+  // Detect current schema
+  const schemaResult = await knex.raw('SELECT current_schema()');
+  const currentSchema = schemaResult.rows[0].current_schema;
+
+  if (currentSchema === 'public') {
+    // Users table
+    await knex.schema.createTable('users', (table) => {
+      table.increments('id').primary();
+      table.string('name', 100).notNullable();
+      table.string('mobile', 15).notNullable().unique();
+      table.string('email', 100).unique().nullable();
+      table.string('password_hash', 255).notNullable();
+      table.string('role', 20).defaultTo('User'); // 'Admin', 'User'
+      table.boolean('active').defaultTo(true);
+      table.string('db_name', 100).nullable();
+      table.timestamps(true, true); // created_at, updated_at
+    });
+  }
 
   // Vendors table
   await knex.schema.createTable('vendors', (table) => {
@@ -90,11 +96,17 @@ exports.up = async function(knex) {
  * @returns { Promise<void> }
  */
 exports.down = async function(knex) {
+  const schemaResult = await knex.raw('SELECT current_schema()');
+  const currentSchema = schemaResult.rows[0].current_schema;
+
   await knex.schema.dropTableIfExists('settings');
   await knex.schema.dropTableIfExists('audit_logs');
   await knex.schema.dropTableIfExists('payments');
   await knex.schema.dropTableIfExists('workflow_history');
   await knex.schema.dropTableIfExists('sarees');
   await knex.schema.dropTableIfExists('vendors');
-  await knex.schema.dropTableIfExists('users');
+
+  if (currentSchema === 'public') {
+    await knex.schema.dropTableIfExists('users');
+  }
 };
