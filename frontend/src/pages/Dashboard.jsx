@@ -69,7 +69,7 @@ const Dashboard = () => {
     {
       title: 'Outstanding Payable',
       value: `₹${summary.total_outstanding_payable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
-      subtitle: 'Pending vendor Hisab',
+      subtitle: 'Pending vendor balances',
       icon: IndianRupee,
       color: 'text-rose-600 bg-rose-50 border-rose-100',
       action: () => navigate('/vendors')

@@ -57,8 +57,7 @@ router.get('/job-work-slip/:historyId', async (req, res) => {
 
     const docDefinition = {
       content: [
-        { text: 'THREAD TRACK', style: 'header', alignment: 'center' },
-        { text: 'Saree Manufacturing Management System', style: 'subheader', alignment: 'center' },
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
         { text: 'JOB WORK SLIP', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
 
         {
@@ -112,6 +111,33 @@ router.get('/job-work-slip/:historyId', async (req, res) => {
           columns: [
             { text: '___________________\nManager Signature', alignment: 'left' },
             { text: '___________________\nVendor Signature', alignment: 'right' }
+          ]
+        },
+        {
+          margin: [0, 30, 0, 0],
+          alignment: 'center',
+          stack: [
+            {
+              table: {
+                widths: [24],
+                body: [
+                  [
+                    {
+                      text: 'TT',
+                      color: 'white',
+                      fillColor: '#4f46e5',
+                      alignment: 'center',
+                      bold: true,
+                      fontSize: 10,
+                      margin: [0, 3, 0, 3]
+                    }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              alignment: 'center'
+            },
+            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
           ]
         }
       ],
@@ -179,8 +205,7 @@ router.get('/payment-receipt/:paymentId', async (req, res) => {
 
     const docDefinition = {
       content: [
-        { text: 'THREAD TRACK', style: 'header', alignment: 'center' },
-        { text: 'Saree Manufacturing Management System', style: 'subheader', alignment: 'center' },
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
         { text: 'PAYMENT RECEIPT', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
 
         {
@@ -217,6 +242,33 @@ router.get('/payment-receipt/:paymentId', async (req, res) => {
           columns: [
             { text: '___________________\nAuthorized Signatory', alignment: 'left' },
             { text: '___________________\nVendor Signature', alignment: 'right' }
+          ]
+        },
+        {
+          margin: [0, 30, 0, 0],
+          alignment: 'center',
+          stack: [
+            {
+              table: {
+                widths: [24],
+                body: [
+                  [
+                    {
+                      text: 'TT',
+                      color: 'white',
+                      fillColor: '#4f46e5',
+                      alignment: 'center',
+                      bold: true,
+                      fontSize: 10,
+                      margin: [0, 3, 0, 3]
+                    }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              alignment: 'center'
+            },
+            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
           ]
         }
       ],
@@ -357,9 +409,9 @@ router.get('/vendor-invoice/:vendorId', async (req, res) => {
 
     const docDefinition = {
       content: [
-        { text: 'THREAD TRACK', style: 'header', alignment: 'center' },
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
         { text: 'Saree Manufacturing Ledger Statement', style: 'subheader', alignment: 'center' },
-        { text: 'VENDOR HISAB STATEMENT', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
+        { text: 'VENDOR STATEMENT', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
 
         {
           columns: [
@@ -394,6 +446,33 @@ router.get('/vendor-invoice/:vendorId', async (req, res) => {
           columns: [
             { text: '___________________\nAuthorized Representative', alignment: 'left' },
             { text: '___________________\nVendor Signature', alignment: 'right' }
+          ]
+        },
+        {
+          margin: [0, 30, 0, 0],
+          alignment: 'center',
+          stack: [
+            {
+              table: {
+                widths: [24],
+                body: [
+                  [
+                    {
+                      text: 'TT',
+                      color: 'white',
+                      fillColor: '#4f46e5',
+                      alignment: 'center',
+                      bold: true,
+                      fontSize: 10,
+                      margin: [0, 3, 0, 3]
+                    }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              alignment: 'center'
+            },
+            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
           ]
         }
       ],
@@ -483,7 +562,7 @@ router.get('/production-report', async (req, res) => {
 
     const docDefinition = {
       content: [
-        { text: 'THREAD TRACK', style: 'header', alignment: 'center' },
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
         { text: 'Saree Manufacturing Status Report', style: 'subheader', alignment: 'center' },
         { text: 'PRODUCTION HISTORY REPORT', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
 
@@ -509,6 +588,33 @@ router.get('/production-report', async (req, res) => {
             body: tableBody
           },
           layout: 'lightHorizontalLines'
+        },
+        {
+          margin: [0, 30, 0, 0],
+          alignment: 'center',
+          stack: [
+            {
+              table: {
+                widths: [24],
+                body: [
+                  [
+                    {
+                      text: 'TT',
+                      color: 'white',
+                      fillColor: '#4f46e5',
+                      alignment: 'center',
+                      bold: true,
+                      fontSize: 10,
+                      margin: [0, 3, 0, 3]
+                    }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              alignment: 'center'
+            },
+            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
+          ]
         }
       ],
       defaultStyle: {
@@ -590,7 +696,7 @@ router.get('/payments-report', async (req, res) => {
 
     const docDefinition = {
       content: [
-        { text: 'THREAD TRACK', style: 'header', alignment: 'center' },
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
         { text: 'Saree Manufacturing Vendor Payments Log', style: 'subheader', alignment: 'center' },
         { text: 'VENDOR PAYMENTS REPORT', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
 
@@ -616,6 +722,33 @@ router.get('/payments-report', async (req, res) => {
             body: tableBody
           },
           layout: 'lightHorizontalLines'
+        },
+        {
+          margin: [0, 30, 0, 0],
+          alignment: 'center',
+          stack: [
+            {
+              table: {
+                widths: [24],
+                body: [
+                  [
+                    {
+                      text: 'TT',
+                      color: 'white',
+                      fillColor: '#4f46e5',
+                      alignment: 'center',
+                      bold: true,
+                      fontSize: 10,
+                      margin: [0, 3, 0, 3]
+                    }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              alignment: 'center'
+            },
+            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
+          ]
         }
       ],
       defaultStyle: {
@@ -719,7 +852,7 @@ router.get('/outstanding-report', async (req, res) => {
 
     const docDefinition = {
       content: [
-        { text: 'THREAD TRACK', style: 'header', alignment: 'center' },
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
         { text: 'Saree Manufacturing Unpaid Vendor Liabilities Ledger', style: 'subheader', alignment: 'center' },
         { text: 'OUTSTANDING LIABILITIES REPORT', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
 
@@ -745,6 +878,33 @@ router.get('/outstanding-report', async (req, res) => {
             body: tableBody
           },
           layout: 'lightHorizontalLines'
+        },
+        {
+          margin: [0, 30, 0, 0],
+          alignment: 'center',
+          stack: [
+            {
+              table: {
+                widths: [24],
+                body: [
+                  [
+                    {
+                      text: 'TT',
+                      color: 'white',
+                      fillColor: '#4f46e5',
+                      alignment: 'center',
+                      bold: true,
+                      fontSize: 10,
+                      margin: [0, 3, 0, 3]
+                    }
+                  ]
+                ]
+              },
+              layout: 'noBorders',
+              alignment: 'center'
+            },
+            { text: 'Thread Track', fontSize: 11, bold: true, color: '#334155', margin: [0, 4, 0, 0] }
+          ]
         }
       ],
       defaultStyle: {

@@ -27,7 +27,7 @@ const Layout = ({ children }) => {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sarees', label: 'Saree Lots', icon: Layers },
-    { path: '/vendors', label: 'Vendors (Hisab)', icon: Users },
+    { path: '/vendors', label: 'Vendors', icon: Users },
     { path: '/payments', label: 'Payments', icon: IndianRupee },
     { path: '/reports', label: 'Reports', icon: FileBarChart }
   ];

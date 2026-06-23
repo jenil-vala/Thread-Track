@@ -49,6 +49,13 @@ const Sarees = () => {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [selectedSaree, setSelectedSaree] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [editingHistory, setEditingHistory] = useState(null);
+  const [isEditHistoryOpen, setIsEditHistoryOpen] = useState(false);
+  const [editHistoryForm, setEditHistoryForm] = useState({
+    vendor_id: '',
+    work_cost: '',
+    remarks: ''
+  });
   
   // Form options
   const [dyedVendors, setDyedVendors] = useState([]);
@@ -331,6 +338,61 @@ const Sarees = () => {
       await refreshDetails();
     } catch (err) {
       setFormError(err.response?.data?.error || 'Failed to receive work.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOpenEditHistory = (record) => {
+    setEditingHistory(record);
+    setEditHistoryForm({
+      vendor_id: record.vendor_id.toString(),
+      work_cost: record.work_cost.toString(),
+      remarks: record.remarks || ''
+    });
+    setIsEditHistoryOpen(true);
+  };
+
+  const handleUpdateHistory = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setActionLoading(true);
+
+    try {
+      await api.put(`/sarees/history/${editingHistory.history_id}`, {
+        vendor_id: parseInt(editHistoryForm.vendor_id),
+        work_cost: parseFloat(editHistoryForm.work_cost),
+        remarks: editHistoryForm.remarks
+      });
+      setIsEditHistoryOpen(false);
+      setEditingHistory(null);
+      await refreshDetails();
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Failed to update stage history.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteHistory = async (record) => {
+    const isDyed = record.stage_name === 'Dyed';
+    const msg = isDyed
+      ? `WARNING: Deleting the initial Dyed stage will permanently delete the ENTIRE saree lot #${selectedSaree.lot_number} and all its subsequent history. Do you want to proceed?`
+      : `Are you sure you want to delete the ${record.stage_name} stage record? This will revert the lot to its previous stage.`;
+      
+    if (!window.confirm(msg)) return;
+
+    setActionLoading(true);
+    try {
+      const res = await api.delete(`/sarees/history/${record.history_id}`);
+      if (res.data.deletedLot) {
+        setIsDetailOpen(false);
+        fetchSarees();
+      } else {
+        await refreshDetails();
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete history stage.');
     } finally {
       setActionLoading(false);
     }
@@ -722,7 +784,7 @@ const Sarees = () => {
       {/* TRACK / DETAIL MODAL */}
       {isDetailOpen && selectedSaree && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 border border-slate-100 animate-slide-up space-y-8">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto p-8 border border-slate-100 animate-slide-up space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900">Lot Details & Tracking</h3>
@@ -746,294 +808,422 @@ const Sarees = () => {
               </div>
             )}
 
-            {/* Saree Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <span className="text-xs font-bold text-slate-400 uppercase">Quantity</span>
-                <p className="text-lg font-bold text-slate-800 mt-1">{selectedSaree.quantity} Sarees</p>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <span className="text-xs font-bold text-slate-400 uppercase">Current Stage</span>
-                <p className="text-lg font-bold text-slate-800 mt-1">{selectedSaree.current_stage}</p>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <span className="text-xs font-bold text-slate-400 uppercase">Current Location</span>
-                <p className="text-lg font-bold text-slate-800 mt-1 truncate">
-                  {selectedSaree.current_vendor_name || 'In Workshop'}
-                </p>
-              </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <span className="text-xs font-bold text-slate-400 uppercase">Pipeline Status</span>
-                <p className={`text-lg font-bold mt-1 ${selectedSaree.status === 'Completed' ? 'text-emerald-600' : 'text-indigo-600'}`}>
-                  {selectedSaree.status}
-                </p>
-              </div>
-            </div>
-
-            {/* Stage Actions Panel */}
-            {selectedSaree.status !== 'Completed' && (
-              <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
-                {selectedSaree.current_vendor_id ? (
-                  // Active pending with vendor: Receive form
-                  <form onSubmit={handleReceiveFromVendor} className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-indigo-600" />
-                      <h4 className="text-md font-bold text-slate-800">
-                        Receive from Vendor ({selectedSaree.current_vendor_name})
-                      </h4>
+            {/* Side-by-Side Layout Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* Left Column: Saree Info & Timeline */}
+              <div className="lg:col-span-5 space-y-6 border-r border-slate-100 pr-0 lg:pr-8">
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lot Summary</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm font-semibold text-slate-700">
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-400 uppercase">Quantity</span>
+                      <span className="text-slate-800 font-extrabold">{selectedSaree.quantity} Sarees</span>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-2">
-                          Actual Cost (₹)
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          required
-                          value={receiveForm.actual_cost}
-                          onChange={(e) => setReceiveForm(prev => ({ ...prev, actual_cost: e.target.value }))}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-2">Remarks</label>
-                        <input
-                          type="text"
-                          value={receiveForm.remarks}
-                          onChange={(e) => setReceiveForm(prev => ({ ...prev, remarks: e.target.value }))}
-                          placeholder="e.g. Received full quantity"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-400 uppercase">Current Stage</span>
+                      <span className="text-slate-800 font-extrabold">{selectedSaree.current_stage}</span>
                     </div>
-
-                    <div className="flex justify-end pt-2">
-                      <button
-                        type="submit"
-                        disabled={actionLoading}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all text-sm flex items-center gap-1.5"
-                      >
-                        {actionLoading ? 'Processing...' : 'Complete Work & Receive'}
-                      </button>
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-400 uppercase">Location</span>
+                      <span className="text-slate-800 font-extrabold truncate block" title={selectedSaree.current_vendor_name || 'In Workshop'}>
+                        {selectedSaree.current_vendor_name || 'In Workshop'}
+                      </span>
                     </div>
-                  </form>
-                ) : (
-                  // Back in workshop: Send to next stage form
-                  <form onSubmit={handleSendToStage} className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <ArrowRight className="w-5 h-5 text-indigo-600 animate-pulse" />
-                      <h4 className="text-md font-bold text-slate-800">Send Saree Lot to Next Stage</h4>
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-400 uppercase">Status</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                        selectedSaree.status === 'Completed'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : selectedSaree.status === 'Hold'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-indigo-50 text-indigo-700'
+                      }`}>
+                        {selectedSaree.status}
+                      </span>
                     </div>
+                  </div>
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-2">Next Stage</label>
-                        <select
-                          value={sendForm.stage_name}
-                          onChange={(e) => setSendForm(prev => ({ ...prev, stage_name: e.target.value }))}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white"
-                        >
-                          <option value="Embroidery">Embroidery</option>
-                          <option value="Stitching">Stitching</option>
-                          <option value="Diamond">Diamond</option>
-                          <option value="Folding">Folding</option>
-                        </select>
-                      </div>
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-indigo-600" />
+                    <span>Manufacturing History</span>
+                  </h4>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-2">Select Vendor</label>
-                        <select
-                          required
-                          value={sendForm.vendor_id}
-                          onChange={(e) => setSendForm(prev => ({ ...prev, vendor_id: e.target.value }))}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white"
-                        >
-                          <option value="">Choose Vendor</option>
-                          {stageVendors.map(v => (
-                            <option key={v.vendor_id} value={v.vendor_id}>
-                              {v.vendor_name} ({v.mobile})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                  <div className="relative border-l border-slate-200 ml-4 pl-6 space-y-6">
+                    {selectedSaree.history.map((record) => (
+                      <div key={record.history_id} className="relative">
+                        {/* Timeline Bullet */}
+                        <span className="absolute -left-[31px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 ring-4 ring-white">
+                          <span className="h-2 w-2 rounded-full bg-indigo-600" />
+                        </span>
+                        
+                        {/* Stage Detail Card */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-indigo-100 transition-all">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold text-slate-800">{record.stage_name}</span>
+                            <span className="text-[10px] text-slate-400 font-bold">{formatDateDMY(record.sent_date)}</span>
+                          </div>
+                          <div className="mt-1 text-[11px] font-semibold text-indigo-600">
+                            {record.vendor_name} ({record.vendor_type})
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-slate-600 flex justify-between items-center">
+                            <span>Cost: ₹{parseFloat(record.work_cost).toLocaleString('en-IN')}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">
+                              {record.received_date ? `Recd: ${formatDateDMY(record.received_date)}` : 'Pending'}
+                            </span>
+                          </div>
+                          {record.remarks && (
+                            <div className="mt-2 text-[10px] text-slate-400 font-medium italic border-t border-slate-100 pt-1.5">
+                              Notes: {record.remarks}
+                            </div>
+                          )}
+                          
+                          {/* Document Slip / Edit / Delete buttons */}
+                          <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                            <button
+                              onClick={() => setPdfModal({
+                                isOpen: true,
+                                url: `/pdf/job-work-slip/${record.history_id}`,
+                                title: `Job Work Slip — Lot #${selectedSaree.lot_number}`,
+                                filename: `job_work_slip_lot_${selectedSaree.lot_number}_stage_${record.stage_name}.pdf`
+                              })}
+                              className="inline-flex items-center gap-1 text-[10px] text-indigo-600 hover:text-indigo-800 transition-all font-bold"
+                            >
+                              <FileDown className="w-3 h-3" />
+                              <span>Slip PDF</span>
+                            </button>
 
-                      {/* Dynamic Cost Input based on stage type */}
-                      {['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) ? (
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-2">
-                            {sendForm.stage_name === 'Embroidery' ? 'Per-Side rate (₹)' : `Per Saree ${sendForm.stage_name} Cost (₹)`}
-                          </label>
-                          <input
-                            type="number"
-                            step="any"
-                            required
-                            value={sendForm.per_unit_rate}
-                            onChange={(e) => setSendForm(prev => ({ ...prev, per_unit_rate: e.target.value }))}
-                            placeholder={sendForm.stage_name === 'Embroidery' ? 'Rate per side' : `Rate per Saree`}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 font-semibold"
-                          />
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleOpenEditHistory(record)}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteHistory(record)}
+                                className="text-[10px] text-rose-500 hover:text-rose-700 font-bold transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Forms & Actions */}
+              <div className="lg:col-span-7 space-y-6 flex flex-col justify-between">
+                
+                {/* Form area */}
+                <div className="space-y-6">
+                  {selectedSaree.status !== 'Completed' ? (
+                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+                      {selectedSaree.current_vendor_id ? (
+                        // Active pending: Receive form
+                        <form onSubmit={handleReceiveFromVendor} className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-indigo-600" />
+                            <h4 className="text-md font-bold text-slate-800">
+                              Receive from Vendor ({selectedSaree.current_vendor_name})
+                            </h4>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-600 mb-2">
+                                Actual Cost (₹)
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                required
+                                value={receiveForm.actual_cost}
+                                onChange={(e) => setReceiveForm(prev => ({ ...prev, actual_cost: e.target.value }))}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-600 mb-2">Remarks</label>
+                              <input
+                                type="text"
+                                value={receiveForm.remarks}
+                                onChange={(e) => setReceiveForm(prev => ({ ...prev, remarks: e.target.value }))}
+                                placeholder="e.g. Received full quantity"
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end pt-2">
+                            <button
+                              type="submit"
+                              disabled={actionLoading}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all text-sm flex items-center gap-1.5 active:scale-95"
+                            >
+                              {actionLoading ? 'Processing...' : 'Complete Work & Receive'}
+                            </button>
+                          </div>
+                        </form>
                       ) : (
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 mb-2">
-                            Total Work Cost (₹)
-                          </label>
-                          <input
-                            type="number"
-                            step="any"
-                            required
-                            value={sendForm.flat_cost}
-                            onChange={(e) => setSendForm(prev => ({ ...prev, flat_cost: e.target.value }))}
-                            placeholder="Total labor amount"
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white"
-                          />
-                        </div>
+                        // Back in workshop: Send to next stage form
+                        <form onSubmit={handleSendToStage} className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <ArrowRight className="w-5 h-5 text-indigo-600 animate-pulse" />
+                            <h4 className="text-md font-bold text-slate-800">Send Saree Lot to Next Stage</h4>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-600 mb-2">Next Stage</label>
+                              <select
+                                value={sendForm.stage_name}
+                                onChange={(e) => setSendForm(prev => ({ ...prev, stage_name: e.target.value }))}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none"
+                              >
+                                <option value="Embroidery">Embroidery</option>
+                                <option value="Stitching">Stitching</option>
+                                <option value="Diamond">Diamond</option>
+                                <option value="Folding">Folding</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-600 mb-2">Select Vendor</label>
+                              <select
+                                required
+                                value={sendForm.vendor_id}
+                                onChange={(e) => setSendForm(prev => ({ ...prev, vendor_id: e.target.value }))}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none"
+                              >
+                                <option value="">Choose Vendor</option>
+                                {stageVendors.map(v => (
+                                  <option key={v.vendor_id} value={v.vendor_id}>
+                                    {v.vendor_name} ({v.mobile})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Dynamic Cost Input based on stage type */}
+                            {['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) ? (
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-2">
+                                  {sendForm.stage_name === 'Embroidery' ? 'Per-Side rate (₹)' : `Per Saree ${sendForm.stage_name} Cost (₹)`}
+                                </label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  required
+                                  value={sendForm.per_unit_rate}
+                                  onChange={(e) => setSendForm(prev => ({ ...prev, per_unit_rate: e.target.value }))}
+                                  placeholder={sendForm.stage_name === 'Embroidery' ? 'Rate per side' : `Rate per Saree`}
+                                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-2">
+                                  Total Work Cost (₹)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  required
+                                  value={sendForm.flat_cost}
+                                  onChange={(e) => setSendForm(prev => ({ ...prev, flat_cost: e.target.value }))}
+                                  placeholder="Total labor amount"
+                                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-semibold text-slate-600 mb-2">Remarks</label>
+                              <input
+                                type="text"
+                                value={sendForm.remarks}
+                                onChange={(e) => setSendForm(prev => ({ ...prev, remarks: e.target.value }))}
+                                placeholder="e.g. Urgent work slip details"
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none"
+                              />
+                            </div>
+                            <div className="text-right font-bold text-slate-800 text-sm mt-6">
+                              {['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) && (
+                                <span className="block text-[10px] text-slate-400 normal-case mb-1">
+                                  Formula: Qty * Rate
+                                </span>
+                              )}
+                              Estimated Cost: ₹{estimatedCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end pt-2">
+                            <button
+                              type="submit"
+                              disabled={actionLoading}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all text-sm flex items-center gap-1.5 active:scale-95"
+                            >
+                              {actionLoading ? 'Sending...' : 'Confirm Handoff & Send'}
+                            </button>
+                          </div>
+                        </form>
                       )}
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-slate-600 mb-2">Remarks</label>
-                        <input
-                          type="text"
-                          value={sendForm.remarks}
-                          onChange={(e) => setSendForm(prev => ({ ...prev, remarks: e.target.value }))}
-                          placeholder="e.g. Urgent work slip details"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white"
-                        />
-                      </div>
-                      <div className="text-right font-bold text-slate-800 text-sm mt-6">
-                        {['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) && (
-                          <span className="block text-xs text-slate-400 normal-case mb-1">
-                            Formula: Qty * Rate
-                          </span>
-                        )}
-                        Estimated Cost: ₹{estimatedCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
+                  ) : (
+                    <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100 text-center space-y-2">
+                      <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
+                      <h4 className="font-bold text-emerald-800 text-base">Manufacturing Cycle Completed</h4>
+                      <p className="text-slate-500 text-sm">All stages of this saree lot have been completed. Finished goods are in the workshop.</p>
                     </div>
+                  )}
+                </div>
 
-                    <div className="flex justify-end pt-2">
+                {/* Secondary Action Panel */}
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lot Management Actions</h4>
+                  <div className="flex flex-wrap gap-3">
+                    {selectedSaree.history.length > 0 && (
                       <button
-                        type="submit"
+                        onClick={handleRollback}
                         disabled={actionLoading}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all text-sm flex items-center gap-1.5"
+                        className="flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-800 px-4 py-2.5 rounded-xl transition-all text-xs font-bold border border-slate-200 active:scale-95 shadow-sm"
                       >
-                        {actionLoading ? 'Sending...' : 'Confirm Handoff & Send'}
+                        <Undo2 className="w-3.5 h-3.5" />
+                        <span>Undo Last Handoff</span>
                       </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            )}
+                    )}
 
-            {/* Workflow Timeline Logs */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h4 className="text-md font-bold text-slate-800 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-indigo-600" />
-                  <span>Manufacturing History & Ledgers</span>
-                </h4>
-                {selectedSaree.history.length > 0 && (
-                  <button
-                    onClick={handleRollback}
-                    disabled={actionLoading}
-                    className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 px-3 py-2 rounded-xl transition-all text-xs font-bold border border-slate-200"
-                  >
-                    <Undo2 className="w-3.5 h-3.5" />
-                    <span>Undo Last Handoff</span>
-                  </button>
-                )}
-              </div>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('WARNING: Deleting this lot will permanently delete all associated workflow records. Continue?')) {
+                          setActionLoading(true);
+                          try {
+                            await api.delete(`/sarees/${selectedSaree.saree_id}`);
+                            setIsDetailOpen(false);
+                            fetchSarees();
+                          } catch (err) {
+                            alert(err.response?.data?.error || 'Failed to delete saree.');
+                          } finally {
+                            setActionLoading(false);
+                          }
+                        }
+                      }}
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2.5 rounded-xl font-bold transition-all text-xs border border-rose-200/50 active:scale-95"
+                    >
+                      Delete Saree Lot
+                    </button>
 
-              <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                      <th className="px-6 py-3.5">Stage</th>
-                      <th className="px-6 py-3.5">Vendor</th>
-                      <th className="px-6 py-3.5">Sent Date</th>
-                      <th className="px-6 py-3.5">Received Date</th>
-                      <th className="px-6 py-3.5">Work Cost</th>
-                      <th className="px-6 py-3.5">Remarks</th>
-                      <th className="px-6 py-3.5 text-right">Documents</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                    {selectedSaree.history.map((record) => (
-                      <tr key={record.history_id} className="hover:bg-slate-50/20">
-                        <td className="px-6 py-3.5 text-indigo-600 font-bold">{record.stage_name}</td>
-                        <td className="px-6 py-3.5">
-                          <div className="flex flex-col">
-                            <span>{record.vendor_name}</span>
-                            <span className="text-xs text-slate-400">({record.vendor_type})</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-3.5 text-xs text-slate-500 whitespace-nowrap">
-                          {formatDateDMY(record.sent_date)}
-                        </td>
-                        <td className="px-6 py-3.5 text-xs whitespace-nowrap">
-                          {record.received_date ? (
-                            <span className="text-emerald-600">
-                              {formatDateDMY(record.received_date)}
-                            </span>
-                          ) : (
-                            <span className="text-rose-500 font-bold animate-pulse">Pending Work</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-3.5 whitespace-nowrap">₹{parseFloat(record.work_cost).toLocaleString('en-IN')}</td>
-                        <td className="px-6 py-3.5 text-xs text-slate-400 max-w-[150px] truncate" title={record.remarks}>
-                          {record.remarks || '-'}
-                        </td>
-                        <td className="px-6 py-3.5 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => setPdfModal({
-                              isOpen: true,
-                              url: `/pdf/job-work-slip/${record.history_id}`,
-                              title: `Job Work Slip — Lot #${selectedSaree.lot_number}`,
-                              filename: `job_work_slip_lot_${selectedSaree.lot_number}_stage_${record.stage_name}.pdf`
-                            })}
-                            className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-all font-bold"
-                          >
-                            <FileDown className="w-3.5 h-3.5" />
-                            <span>Slip PDF</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    <button
+                      onClick={() => {
+                        setIsDetailOpen(false);
+                        setFormError('');
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all text-xs shadow-md shadow-indigo-600/10 ml-auto active:scale-95"
+                    >
+                      Close Tracking
+                    </button>
+                  </div>
+                </div>
+                
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+          </div>
+        </div>
+      )}
+
+      {/* EDIT WORKFLOW HISTORY RECORD MODAL */}
+      {isEditHistoryOpen && editingHistory && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border border-slate-100 animate-slide-up space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Edit Stage Record</h3>
+                <p className="text-xs font-semibold text-slate-400 uppercase mt-0.5">Stage: {editingHistory.stage_name}</p>
+              </div>
               <button
-                onClick={async () => {
-                  if (window.confirm('WARNING: Deleting this lot will permanently delete all associated workflow records. Continue?')) {
-                    setActionLoading(true);
-                    try {
-                      await api.delete(`/sarees/${selectedSaree.saree_id}`);
-                      setIsDetailOpen(false);
-                      fetchSarees();
-                    } catch (err) {
-                      alert(err.response?.data?.error || 'Failed to delete saree.');
-                    } finally {
-                      setActionLoading(false);
-                    }
-                  }
+                onClick={() => {
+                  setIsEditHistoryOpen(false);
+                  setEditingHistory(null);
                 }}
-                className="bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2.5 rounded-xl font-bold transition-all text-xs border border-rose-200/50"
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
               >
-                Delete Saree Lot
-              </button>
-              <button
-                onClick={() => setIsDetailOpen(false)}
-                className="px-5 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold transition-all text-sm"
-              >
-                Close Tracking
+                <XCircle className="w-5 h-5" />
               </button>
             </div>
+
+            <form onSubmit={handleUpdateHistory} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Select Vendor</label>
+                <select
+                  required
+                  value={editHistoryForm.vendor_id}
+                  onChange={(e) => setEditHistoryForm(prev => ({ ...prev, vendor_id: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Choose Vendor</option>
+                  {allVendors
+                    .filter(v => v.vendor_type.toLowerCase() === editingHistory.stage_name.toLowerCase())
+                    .map(v => (
+                      <option key={v.vendor_id} value={v.vendor_id}>
+                        {v.vendor_name} ({v.mobile})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Work Cost (₹)</label>
+                <input
+                  type="number"
+                  required
+                  step="any"
+                  value={editHistoryForm.work_cost}
+                  onChange={(e) => setEditHistoryForm(prev => ({ ...prev, work_cost: e.target.value }))}
+                  placeholder="Enter cost of work"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Remarks</label>
+                <input
+                  type="text"
+                  value={editHistoryForm.remarks}
+                  onChange={(e) => setEditHistoryForm(prev => ({ ...prev, remarks: e.target.value }))}
+                  placeholder="Additional notes..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditHistoryOpen(false);
+                    setEditingHistory(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all text-xs"
+                >
+                  {actionLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

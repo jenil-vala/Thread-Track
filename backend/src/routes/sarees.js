@@ -549,4 +549,149 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// @route   PUT /api/sarees/history/:historyId
+// @desc    Edit a specific workflow history record (e.g. edit Dyed stage cost or vendor)
+router.put('/history/:historyId', async (req, res) => {
+  const historyId = req.params.historyId;
+  const { vendor_id, work_cost, remarks } = req.body;
+
+  if (!vendor_id || work_cost === undefined) {
+    return res.status(400).json({ error: 'Please select a vendor and specify the work cost' });
+  }
+
+  try {
+    const history = await db('workflow_history').where({ history_id: historyId }).first();
+    if (!history) {
+      return res.status(404).json({ error: 'History record not found' });
+    }
+
+    const saree = await db('sarees').where({ saree_id: history.saree_id }).first();
+    if (!saree) {
+      return res.status(404).json({ error: 'Associated saree lot not found' });
+    }
+
+    // Validate vendor
+    const vendor = await db('vendors').where({ vendor_id }).first();
+    if (!vendor) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+    if (vendor.vendor_type.toLowerCase() !== history.stage_name.toLowerCase()) {
+      return res.status(400).json({ error: `Selected vendor is a ${vendor.vendor_type} vendor, but this stage is ${history.stage_name}` });
+    }
+
+    await db.transaction(async (trx) => {
+      // Update history entry
+      await trx('workflow_history')
+        .where({ history_id: historyId })
+        .update({
+          vendor_id: parseInt(vendor_id),
+          work_cost: parseFloat(work_cost),
+          remarks: remarks || null,
+          updated_by: req.user.id
+        });
+
+      // If this history entry is currently active on the saree (received_date is null),
+      // we must update the saree's current vendor.
+      if (history.received_date === null && saree.current_vendor_id === history.vendor_id) {
+        await trx('sarees')
+          .where({ saree_id: history.saree_id })
+          .update({
+            current_vendor_id: parseInt(vendor_id)
+          });
+      }
+    });
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    await logAction(
+      req.user.id,
+      req.user.name,
+      'EDIT_HISTORY_STAGE',
+      `Edited ${history.stage_name} stage record for saree lot ${saree.lot_number} (Cost: ₹${work_cost})`,
+      ip
+    );
+
+    res.json({ message: 'History record updated successfully' });
+  } catch (error) {
+    console.error('Edit history stage error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/sarees/history/:historyId
+// @desc    Delete a specific workflow history record (e.g. delete Dyed stage or other stages)
+router.delete('/history/:historyId', async (req, res) => {
+  const historyId = req.params.historyId;
+
+  try {
+    const history = await db('workflow_history').where({ history_id: historyId }).first();
+    if (!history) {
+      return res.status(404).json({ error: 'History record not found' });
+    }
+
+    const saree = await db('sarees').where({ saree_id: history.saree_id }).first();
+    if (!saree) {
+      return res.status(404).json({ error: 'Associated saree lot not found' });
+    }
+
+    // Check if this history entry is the 'Dyed' stage
+    if (history.stage_name === 'Dyed') {
+      // Deleting Dyed stage deletes the entire saree lot
+      await db.transaction(async (trx) => {
+        await trx('sarees').where({ saree_id: history.saree_id }).del();
+      });
+
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      await logAction(
+        req.user.id,
+        req.user.name,
+        'DELETE_SAREE',
+        `Deleted saree lot ${saree.lot_number} by deleting its Dyed stage`,
+        ip
+      );
+
+      return res.json({ message: 'Saree lot and history deleted successfully', deletedLot: true });
+    } else {
+      // Deleting a non-Dyed stage
+      await db.transaction(async (trx) => {
+        await trx('workflow_history').where({ history_id: historyId }).del();
+        
+        // Get the latest history record now
+        const latest = await trx('workflow_history')
+          .where({ saree_id: history.saree_id })
+          .orderBy('history_id', 'desc')
+          .first();
+
+        if (latest) {
+          const isFolding = latest.stage_name === 'Folding' && latest.received_date !== null;
+          await trx('sarees')
+            .where({ saree_id: history.saree_id })
+            .update({
+              current_stage: latest.received_date === null ? latest.stage_name : (isFolding ? 'Completed' : latest.stage_name),
+              current_vendor_id: latest.received_date === null ? latest.vendor_id : null,
+              status: isFolding ? 'Completed' : 'In Process',
+              updated_at: trx.fn.now()
+            });
+        } else {
+          // No history records left! Delete the saree lot.
+          await trx('sarees').where({ saree_id: history.saree_id }).del();
+        }
+      });
+
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      await logAction(
+        req.user.id,
+        req.user.name,
+        'DELETE_HISTORY_STAGE',
+        `Deleted stage ${history.stage_name} from saree lot ${saree.lot_number}`,
+        ip
+      );
+
+      return res.json({ message: 'History record deleted successfully', deletedLot: false });
+    }
+  } catch (error) {
+    console.error('Delete history stage error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

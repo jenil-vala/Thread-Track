@@ -408,7 +408,7 @@ const Vendors = () => {
                   <th className="px-6 py-4">Sarees Work Status</th>
                   <th className="px-6 py-4">Work Total (Completed)</th>
                   <th className="px-6 py-4">Paid Total</th>
-                  <th className="px-6 py-4">Pending (Hisab)</th>
+                  <th className="px-6 py-4">Pending</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -443,7 +443,7 @@ const Vendors = () => {
                         className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 active:scale-95 text-slate-700 px-3 py-2 rounded-lg transition-all text-xs font-bold"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>Ledger (Hisab)</span>
+                        <span>Ledger</span>
                       </button>
                       <button
                         onClick={() => handleOpenEditModal(vendor)}
@@ -625,7 +625,7 @@ const Vendors = () => {
                     setPdfModal({
                       isOpen: true,
                       url: `/pdf/vendor-invoice/${selectedVendor.vendor.vendor_id}${q}`,
-                      title: `Vendor Hisab Statement — ${selectedVendor.vendor.vendor_name}`,
+                      title: `Vendor Statement — ${selectedVendor.vendor.vendor_name}`,
                       filename: `vendor_statement_${selectedVendor.vendor.vendor_name.replace(/\s+/g, '_')}.pdf`
                     });
                   }}
