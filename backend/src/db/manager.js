@@ -20,6 +20,46 @@ function getTenantDbName(mobile) {
 }
 
 /**
+ * Routes a connection configuration to the tenant-specific database.
+ * If the connection is a string (e.g. DATABASE_URL) or has a connectionString,
+ * it parses it as a URL and swaps the database name.
+ * @param {string|object} connection
+ * @param {string} dbName
+ * @returns {string|object}
+ */
+function getRoutedConnection(connection, dbName) {
+  if (typeof connection === 'string') {
+    try {
+      const parsedUrl = new URL(connection);
+      parsedUrl.pathname = `/${dbName}`;
+      return parsedUrl.toString();
+    } catch (e) {
+      console.error('Failed to parse database connection string URL:', e);
+      return connection;
+    }
+  }
+  if (connection && typeof connection === 'object') {
+    if (connection.connectionString) {
+      try {
+        const parsedUrl = new URL(connection.connectionString);
+        parsedUrl.pathname = `/${dbName}`;
+        return {
+          ...connection,
+          connectionString: parsedUrl.toString()
+        };
+      } catch (e) {
+        console.error('Failed to parse connectionString URL:', e);
+      }
+    }
+    return {
+      ...connection,
+      database: dbName
+    };
+  }
+  return connection;
+}
+
+/**
  * Retrieves or initializes a cached connection pool for the user's specific database
  * @param {string|null} dbNameOrMobile - User's database name or mobile number
  * @returns {import('knex').Knex}
@@ -37,10 +77,7 @@ function getTenantDb(dbNameOrMobile) {
   }
 
   const config = { ...baseConfig[env] };
-  config.connection = {
-    ...config.connection,
-    database: dbName
-  };
+  config.connection = getRoutedConnection(config.connection, dbName);
   config.migrations = {
     directory: path.join(__dirname, 'migrations')
   };
@@ -81,10 +118,7 @@ async function createTenantDatabase(dbNameOrMobile) {
 
   // 2. Initialize schema by running migrations on the new database
   const config = { ...baseConfig[env] };
-  config.connection = {
-    ...config.connection,
-    database: dbName
-  };
+  config.connection = getRoutedConnection(config.connection, dbName);
   config.migrations = {
     directory: path.join(__dirname, 'migrations')
   };
@@ -127,5 +161,6 @@ module.exports = {
   getTenantDb,
   getTenantDbName,
   createTenantDatabase,
-  renameTenantDbCache
+  renameTenantDbCache,
+  getRoutedConnection
 };

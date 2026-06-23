@@ -51,7 +51,7 @@ exports.up = async function(knex) {
     table.timestamp('received_date').nullable();
     table.decimal('work_cost', 12, 2).defaultTo(0.00).notNullable();
     table.text('remarks').nullable();
-    table.integer('updated_by').unsigned().references('id').inTable('users').onDelete('SET NULL').nullable();
+    table.integer('updated_by').unsigned().nullable();
     table.timestamp('created_at').defaultTo(knex.fn.now());
   });
 
@@ -63,14 +63,14 @@ exports.up = async function(knex) {
     table.decimal('amount', 12, 2).notNullable();
     table.string('payment_method', 50).notNullable(); // 'Cash', 'UPI', 'Bank Transfer', 'Cheque'
     table.text('remarks').nullable();
-    table.integer('created_by').unsigned().references('id').inTable('users').onDelete('SET NULL').nullable();
+    table.integer('created_by').unsigned().nullable();
     table.timestamp('created_at').defaultTo(knex.fn.now());
   });
 
   // Audit Logs table
   await knex.schema.createTable('audit_logs', (table) => {
     table.increments('log_id').primary();
-    table.integer('user_id').unsigned().references('id').inTable('users').onDelete('SET NULL').nullable();
+    table.integer('user_id').unsigned().nullable();
     table.string('user_name', 100).nullable();
     table.string('action', 150).notNullable();
     table.text('details').nullable();
