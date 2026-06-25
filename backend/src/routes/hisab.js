@@ -23,10 +23,11 @@ router.get('/', async (req, res) => {
       .whereNotNull('received_date')
       .groupBy('vendor_id');
 
-    // 3. Fetch total paid for all vendors
+    // 3. Fetch total paid and total discount for all vendors
     let paymentQuery = db('payments')
       .select('vendor_id')
       .sum('amount as total_paid')
+      .sum('discount as total_discount')
       .groupBy('vendor_id');
 
     // 4. Fetch current pending sarees count (received_date is null)
@@ -60,12 +61,13 @@ router.get('/', async (req, res) => {
     const hisabSummary = vendors.map(vendor => {
       const vId = vendor.vendor_id;
       const workData = workMap.get(vId) || { total_work: 0, completed_sarees: 0 };
-      const paymentData = paymentMap.get(vId) || { total_paid: 0 };
+      const paymentData = paymentMap.get(vId) || { total_paid: 0, total_discount: 0 };
       const pendingData = pendingMap.get(vId) || { pending_sarees: 0 };
 
       const totalWork = parseFloat(workData.total_work || 0);
       const totalPaid = parseFloat(paymentData.total_paid || 0);
-      const pendingBalance = totalWork - totalPaid;
+      const totalDiscount = parseFloat(paymentData.total_discount || 0);
+      const pendingBalance = totalWork - (totalPaid + totalDiscount);
 
       return {
         vendor_id: vendor.vendor_id,
@@ -74,6 +76,7 @@ router.get('/', async (req, res) => {
         mobile: vendor.mobile,
         total_work: totalWork,
         total_paid: totalPaid,
+        total_discount: totalDiscount,
         pending_balance: pendingBalance,
         completed_sarees_count: parseInt(workData.completed_sarees || 0),
         pending_sarees_count: parseInt(pendingData.pending_sarees || 0)
@@ -114,9 +117,9 @@ router.get('/vendors/:id', async (req, res) => {
       .where('h.vendor_id', vendorId)
       .whereNotNull('h.received_date');
 
-    // 2. Get all payment records for this vendor
+    // 2. Get all payment records for this vendor (including discounts)
     const paymentRecords = await db('payments')
-      .select('payment_id', 'payment_date as date', 'amount', 'payment_method', 'remarks')
+      .select('payment_id', 'payment_date as date', 'amount', 'discount', 'discount_reason', 'payment_method', 'remarks')
       .where('vendor_id', vendorId);
 
     // 3. Construct chronological ledger entries
@@ -134,16 +137,28 @@ router.get('/vendors/:id', async (req, res) => {
       });
     });
 
-    // Add payment entries (debits/reductions in balance)
+    // Add payment and discount entries (debits/reductions in balance)
     paymentRecords.forEach(p => {
-      ledger.push({
-        id: `payment_${p.payment_id}`,
-        date: new Date(p.date),
-        type: 'payment',
-        description: `Payment made via ${p.payment_method}`,
-        amount: parseFloat(p.amount),
-        remarks: p.remarks
-      });
+      if (parseFloat(p.amount) > 0) {
+        ledger.push({
+          id: `payment_${p.payment_id}`,
+          date: new Date(p.date),
+          type: 'payment',
+          description: `Payment made via ${p.payment_method}`,
+          amount: parseFloat(p.amount),
+          remarks: p.remarks
+        });
+      }
+      if (parseFloat(p.discount) > 0) {
+        ledger.push({
+          id: `discount_${p.payment_id}`,
+          date: new Date(p.date),
+          type: 'discount',
+          description: `Discount applied: ${p.discount_reason || 'General Discount'}`,
+          amount: parseFloat(p.discount),
+          remarks: p.remarks
+        });
+      }
     });
 
     // Sort chronologically by date
@@ -171,13 +186,15 @@ router.get('/vendors/:id', async (req, res) => {
     // Summary calculations
     const totalWork = workRecords.reduce((sum, w) => sum + parseFloat(w.amount), 0);
     const totalPaid = paymentRecords.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const totalDiscount = paymentRecords.reduce((sum, p) => sum + parseFloat(p.discount || 0), 0);
 
     res.json({
       vendor,
       summary: {
         total_work: totalWork,
         total_paid: totalPaid,
-        pending_balance: totalWork - totalPaid
+        total_discount: totalDiscount,
+        pending_balance: totalWork - (totalPaid + totalDiscount)
       },
       ledger: ledgerWithRunningBalance
     });

@@ -22,10 +22,10 @@ router.get('/dashboard', async (req, res) => {
       .groupBy('current_stage', 'status');
 
     // 3. Outstanding payable total
-    // Sum of all completed work cost - sum of all payments
+    // Sum of all completed work cost - (sum of all payments + sum of all discounts)
     const workTotal = await db('workflow_history').sum('work_cost as total').whereNotNull('received_date').first();
-    const payTotal = await db('payments').sum('amount as total').first();
-    const outstanding = parseFloat(workTotal.total || 0) - parseFloat(payTotal.total || 0);
+    const payTotal = await db('payments').sum('amount as total').sum('discount as discount_total').first();
+    const outstanding = parseFloat(workTotal.total || 0) - (parseFloat(payTotal.total || 0) + parseFloat(payTotal.discount_total || 0));
 
     // 4. Counts of active vendors
     const vendorCount = await db('vendors').count('vendor_id as count').first();
@@ -98,7 +98,7 @@ router.get('/outstanding', async (req, res) => {
     // We reuse the logic from the Hisab router but filter for positive outstanding balances
     const vendors = await db('vendors').orderBy('vendor_name', 'asc');
     const workSummary = await db('workflow_history').select('vendor_id').sum('work_cost as total_work').whereNotNull('received_date').groupBy('vendor_id');
-    const paymentSummary = await db('payments').select('vendor_id').sum('amount as total_paid').groupBy('vendor_id');
+    const paymentSummary = await db('payments').select('vendor_id').sum('amount as total_paid').sum('discount as total_discount').groupBy('vendor_id');
 
     const workMap = new Map(workSummary.map(w => [w.vendor_id, w]));
     const paymentMap = new Map(paymentSummary.map(p => [p.vendor_id, p]));
@@ -108,7 +108,8 @@ router.get('/outstanding', async (req, res) => {
         const vId = vendor.vendor_id;
         const workTotal = parseFloat(workMap.get(vId)?.total_work || 0);
         const paymentTotal = parseFloat(paymentMap.get(vId)?.total_paid || 0);
-        const balance = workTotal - paymentTotal;
+        const discountTotal = parseFloat(paymentMap.get(vId)?.total_discount || 0);
+        const balance = workTotal - (paymentTotal + discountTotal);
 
         return {
           vendor_id: vendor.vendor_id,

@@ -831,4 +831,416 @@ router.get('/outstanding-report', async (req, res) => {
   }
 });
 
+// @route   GET /api/pdf/vendor-statement/:vendorId
+// @desc    Generate printable ledger statement for a single vendor including running balance
+router.get('/vendor-statement/:vendorId', async (req, res) => {
+  const vendorId = req.params.vendorId;
+  const { startDate, endDate } = req.query;
+
+  try {
+    const vendor = await db('vendors').where({ vendor_id: vendorId }).first();
+    if (!vendor) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    // 1. Fetch completed work records
+    let workQuery = db('workflow_history as h')
+      .join('sarees as s', 'h.saree_id', 's.saree_id')
+      .select('h.history_id', 'h.received_date as date', 's.lot_number', 's.design_name', 's.quantity', 'h.stage_name', 'h.work_cost as amount', 'h.saree_id')
+      .where('h.vendor_id', vendorId)
+      .whereNotNull('h.received_date');
+
+    if (startDate) workQuery = workQuery.where('h.received_date', '>=', new Date(startDate));
+    if (endDate) workQuery = workQuery.where('h.received_date', '<=', new Date(endDate + 'T23:59:59.999Z'));
+
+    const workRecords = await workQuery.orderBy('h.received_date', 'asc').orderBy('h.history_id', 'asc');
+
+    // Dynamically calculate ch_suffix for each work record
+    const sareeHistoryIds = {};
+    const allWorkForVendor = await db('workflow_history')
+      .where({ vendor_id: vendorId })
+      .whereNotNull('received_date')
+      .orderBy('history_id', 'asc')
+      .select('history_id', 'saree_id');
+
+    allWorkForVendor.forEach(wh => {
+      if (!sareeHistoryIds[wh.saree_id]) {
+        sareeHistoryIds[wh.saree_id] = [];
+      }
+      sareeHistoryIds[wh.saree_id].push(wh.history_id);
+    });
+
+    // 2. Fetch payments & discounts
+    let paymentQuery = db('payments')
+      .select('payment_id', 'payment_date as date', 'amount', 'discount', 'discount_reason', 'payment_method', 'remarks')
+      .where('vendor_id', vendorId);
+
+    if (startDate) paymentQuery = paymentQuery.where('payment_date', '>=', new Date(startDate));
+    if (endDate) paymentQuery = paymentQuery.where('payment_date', '<=', new Date(endDate + 'T23:59:59.999Z'));
+
+    const paymentRecords = await paymentQuery.orderBy('payment_date', 'asc').orderBy('payment_id', 'asc');
+
+    // 3. Create combined chronological ledger
+    const ledger = [];
+
+    workRecords.forEach(w => {
+      const chIdx = sareeHistoryIds[w.saree_id]?.indexOf(w.history_id) ?? -1;
+      const chSuffix = chIdx !== -1 ? (chIdx + 1) : 1;
+      ledger.push({
+        date: new Date(w.date),
+        lot_number: w.lot_number,
+        challan_number: `${w.lot_number}.${chSuffix}`,
+        desc: `${w.stage_name} work completed (Qty: ${w.quantity})`,
+        debit: 0,
+        credit: parseFloat(w.amount),
+        type: 'work'
+      });
+    });
+
+    paymentRecords.forEach(p => {
+      if (parseFloat(p.amount) > 0) {
+        ledger.push({
+          date: new Date(p.date),
+          lot_number: null,
+          challan_number: null,
+          desc: `Paid via ${p.payment_method} ${p.remarks ? `(${p.remarks})` : ''}`,
+          debit: parseFloat(p.amount),
+          credit: 0,
+          type: 'payment'
+        });
+      }
+      if (parseFloat(p.discount) > 0) {
+        ledger.push({
+          date: new Date(p.date),
+          lot_number: null,
+          challan_number: null,
+          desc: `Discount applied: ${p.discount_reason || 'General Discount'}`,
+          debit: parseFloat(p.discount),
+          credit: 0,
+          type: 'discount'
+        });
+      }
+    });
+
+    // Sort ledger chronologically
+    ledger.sort((a, b) => a.date - b.date);
+
+    // Calculate running balance
+    let runningBalance = 0;
+    const tableBody = [
+      [
+        { text: 'Date', style: 'tableHeader' },
+        { text: 'Lot No', style: 'tableHeader' },
+        { text: 'Challan No', style: 'tableHeader' },
+        { text: 'Description', style: 'tableHeader' },
+        { text: 'Debit (Dr)', style: 'tableHeader', alignment: 'right' },
+        { text: 'Credit (Cr)', style: 'tableHeader', alignment: 'right' },
+        { text: 'Running Balance', style: 'tableHeader', alignment: 'right' }
+      ]
+    ];
+
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    ledger.forEach(entry => {
+      if (entry.type === 'work') {
+        runningBalance += entry.credit;
+        totalCredit += entry.credit;
+      } else {
+        runningBalance -= entry.debit;
+        totalDebit += entry.debit;
+      }
+
+      tableBody.push([
+        entry.date.toLocaleDateString('en-IN'),
+        entry.lot_number ? entry.lot_number.toString() : '-',
+        entry.challan_number ? entry.challan_number : '-',
+        entry.desc,
+        entry.debit > 0 ? formatCurrency(entry.debit) : '-',
+        entry.credit > 0 ? formatCurrency(entry.credit) : '-',
+        { text: formatCurrency(runningBalance), alignment: 'right', style: 'boldText', color: runningBalance > 0 ? 'red' : 'green' }
+      ]);
+    });
+
+    // Total summary row
+    tableBody.push([
+      { text: 'TOTAL SUMMARY', style: 'boldText' },
+      '',
+      '',
+      '',
+      { text: formatCurrency(totalDebit), style: 'boldText', alignment: 'right' },
+      { text: formatCurrency(totalCredit), style: 'boldText', alignment: 'right' },
+      { text: formatCurrency(runningBalance), style: 'boldText', alignment: 'right', color: runningBalance > 0 ? 'red' : 'green' }
+    ]);
+
+    const docDefinition = {
+      content: [
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
+        { text: 'Saree Manufacturing Ledger Statement', style: 'subheader', alignment: 'center' },
+        { text: 'VENDOR PAYMENT LEDGER STATEMENT', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
+
+        {
+          columns: [
+            [
+              { text: `Vendor Name: ${vendor.vendor_name}`, style: 'boldText' },
+              { text: `Vendor Type: ${vendor.vendor_type}` },
+              { text: `Mobile: ${vendor.mobile}` },
+              { text: `Address: ${vendor.address || 'N/A'}` }
+            ],
+            [
+              { text: `Date Generated: ${formatDate(new Date())}`, alignment: 'right' },
+              (startDate || endDate) ? { text: `Period: ${startDate || 'Start'} to ${endDate || 'End'}`, alignment: 'right', style: 'subheader' } : { text: 'Period: All Time', alignment: 'right', style: 'subheader' },
+              { text: `Total Work Cost (Cr): ${formatCurrency(totalCredit)}`, alignment: 'right' },
+              { text: `Total Paid (Dr): ${formatCurrency(totalDebit)}`, alignment: 'right' },
+              { text: `Outstanding Balance: ${formatCurrency(runningBalance)}`, alignment: 'right', style: 'boldText', color: runningBalance > 0 ? 'red' : 'green' }
+            ]
+          ]
+        },
+        { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1 }], margin: [0, 10, 0, 15] },
+
+        { text: 'TRANSACTION STATEMENT', style: 'sectionHeader', margin: [0, 5, 0, 10] },
+        {
+          table: {
+            widths: ['12%', '10%', '13%', '29%', '12%', '12%', '12%'],
+            body: tableBody
+          },
+          layout: 'lightHorizontalLines'
+        },
+
+        { text: '\n\n\n\n' },
+        {
+          columns: [
+            { text: '___________________\nAuthorized Representative', alignment: 'left' },
+            { text: '___________________\nVendor Signature', alignment: 'right' }
+          ]
+        },
+        getFooterLogo()
+      ],
+      defaultStyle: {
+        font: 'Helvetica',
+        fontSize: 9,
+        lineHeight: 1.4
+      },
+      styles: {
+        header: { fontSize: 18, bold: true },
+        subheader: { fontSize: 9, color: 'gray' },
+        title: { fontSize: 13, bold: true, decoration: 'underline' },
+        sectionHeader: { fontSize: 11, bold: true },
+        tableHeader: { bold: true, fillColor: '#EEEEEE' },
+        boldText: { bold: true }
+      }
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="vendor_statement_${vendorId}.pdf"`);
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    await logAction(req.user.id, req.user.name, 'GENERATE_PDF', `Generated Vendor Ledger Statement PDF for vendor ID ${vendorId}`, ip);
+  } catch (error) {
+    console.error('Generate Vendor Statement PDF error:', error);
+    res.status(500).json({ error: 'Server error generating PDF' });
+  }
+});
+
+// @route   GET /api/pdf/payments-ledger-statement
+// @desc    Generate complete payments ledger statement matching active filters
+router.get('/payments-ledger-statement', async (req, res) => {
+  const { vendorId, startDate, endDate } = req.query;
+
+  try {
+    // 1. Get completed workflow history records
+    let workQuery = db('workflow_history as h')
+      .join('sarees as s', 'h.saree_id', 's.saree_id')
+      .join('vendors as v', 'h.vendor_id', 'v.vendor_id')
+      .select(
+        'h.history_id',
+        'h.received_date as date',
+        's.lot_number',
+        's.design_name',
+        's.quantity',
+        'v.vendor_id',
+        'v.vendor_name',
+        'v.vendor_type',
+        'h.stage_name as work_stage',
+        'h.work_cost as work_amount',
+        'h.saree_id'
+      )
+      .whereNotNull('h.received_date');
+
+    if (vendorId) {
+      workQuery = workQuery.where('h.vendor_id', vendorId);
+    }
+    if (startDate) {
+      workQuery = workQuery.where('h.received_date', '>=', new Date(startDate));
+    }
+    if (endDate) {
+      workQuery = workQuery.where('h.received_date', '<=', new Date(endDate + 'T23:59:59.999Z'));
+    }
+
+    const workRecords = await workQuery.orderBy('h.received_date', 'asc').orderBy('h.history_id', 'asc');
+
+    // 2. Fetch sum of payments and discounts grouped by history_id
+    const paymentsSummary = await db('payments')
+      .select('history_id')
+      .sum('amount as total_paid')
+      .sum('discount as total_discount')
+      .groupBy('history_id');
+
+    const paymentMap = new Map(
+      paymentsSummary.map(p => [
+        p.history_id,
+        {
+          total_paid: parseFloat(p.total_paid || 0),
+          total_discount: parseFloat(p.total_discount || 0)
+        }
+      ])
+    );
+
+    // Dynamic sorting/order map for challan suffix calculation per saree_id
+    const sareeHistoryIds = {};
+    const allWork = await db('workflow_history')
+      .whereNotNull('received_date')
+      .orderBy('history_id', 'asc')
+      .select('history_id', 'saree_id');
+
+    allWork.forEach(wh => {
+      if (!sareeHistoryIds[wh.saree_id]) {
+        sareeHistoryIds[wh.saree_id] = [];
+      }
+      sareeHistoryIds[wh.saree_id].push(wh.history_id);
+    });
+
+    let totalWorkVal = 0;
+    let totalDiscountVal = 0;
+    let totalPaidVal = 0;
+    let totalOutstandingVal = 0;
+
+    const tableBody = [
+      [
+        { text: 'Challan No', style: 'tableHeader' },
+        { text: 'Vendor Name', style: 'tableHeader' },
+        { text: 'Stage', style: 'tableHeader' },
+        { text: 'Work Cost', style: 'tableHeader', alignment: 'right' },
+        { text: 'Discount', style: 'tableHeader', alignment: 'right' },
+        { text: 'Paid', style: 'tableHeader', alignment: 'right' },
+        { text: 'Outstanding', style: 'tableHeader', alignment: 'right' },
+        { text: 'Status', style: 'tableHeader' }
+      ]
+    ];
+
+    workRecords.forEach(wr => {
+      const pSum = paymentMap.get(wr.history_id) || { total_paid: 0, total_discount: 0 };
+      
+      const workAmount = parseFloat(wr.work_amount || 0);
+      const discount = pSum.total_discount;
+      const netAmount = Math.max(0, workAmount - discount);
+      const paidAmount = pSum.total_paid;
+      const outstandingAmount = Math.max(0, netAmount - paidAmount);
+      
+      let paymentStatusVal = 'Unpaid';
+      if (paidAmount >= netAmount && (netAmount > 0 || paidAmount > 0)) {
+        paymentStatusVal = 'Paid';
+      } else if (paidAmount > 0) {
+        paymentStatusVal = 'Partially Paid';
+      }
+
+      const chIdx = sareeHistoryIds[wr.saree_id]?.indexOf(wr.history_id) ?? -1;
+      const chSuffix = chIdx !== -1 ? (chIdx + 1) : 1;
+      const challanNumber = `${wr.lot_number}.${chSuffix}`;
+
+      totalWorkVal += workAmount;
+      totalDiscountVal += discount;
+      totalPaidVal += paidAmount;
+      totalOutstandingVal += outstandingAmount;
+
+      tableBody.push([
+        challanNumber,
+        wr.vendor_name,
+        wr.work_stage,
+        { text: formatCurrency(workAmount), alignment: 'right' },
+        { text: discount > 0 ? formatCurrency(discount) : '-', alignment: 'right' },
+        { text: paidAmount > 0 ? formatCurrency(paidAmount) : '-', alignment: 'right' },
+        { text: outstandingAmount > 0 ? formatCurrency(outstandingAmount) : '-', alignment: 'right', style: outstandingAmount > 0 ? 'boldText' : null, color: outstandingAmount > 0 ? 'red' : null },
+        { text: paymentStatusVal, color: paymentStatusVal === 'Paid' ? 'green' : (paymentStatusVal === 'Partially Paid' ? 'orange' : 'red'), style: 'boldText' }
+      ]);
+    });
+
+    // Totals Row
+    tableBody.push([
+      { text: 'TOTALS', style: 'boldText' },
+      '',
+      '',
+      { text: formatCurrency(totalWorkVal), style: 'boldText', alignment: 'right' },
+      { text: formatCurrency(totalDiscountVal), style: 'boldText', alignment: 'right' },
+      { text: formatCurrency(totalPaidVal), style: 'boldText', alignment: 'right' },
+      { text: formatCurrency(totalOutstandingVal), style: 'boldText', alignment: 'right', color: totalOutstandingVal > 0 ? 'red' : 'green' },
+      ''
+    ]);
+
+    let vendorHeader = 'All Vendors';
+    if (vendorId && workRecords.length > 0) {
+      vendorHeader = `${workRecords[0].vendor_name} (${workRecords[0].vendor_type})`;
+    }
+
+    const docDefinition = {
+      content: [
+        { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
+        { text: 'Saree Manufacturing Vendor Payments Statement', style: 'subheader', alignment: 'center' },
+        { text: 'VENDOR PAYMENT STATEMENT PDF', style: 'title', alignment: 'center', margin: [0, 10, 0, 20] },
+
+        {
+          columns: [
+            [
+              { text: `Vendor Partner: ${vendorHeader}`, style: 'boldText' },
+              { text: `Date Range: ${startDate || 'Start'} to ${endDate || 'End'}` }
+            ],
+            [
+              { text: `Report Generated: ${formatDate(new Date())}`, alignment: 'right' },
+              { text: `Total Outstanding Payable: ${formatCurrency(totalOutstandingVal)}`, alignment: 'right', style: 'boldText', color: totalOutstandingVal > 0 ? 'red' : 'green' }
+            ]
+          ]
+        },
+        { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1 }], margin: [0, 10, 0, 15] },
+
+        {
+          table: {
+            widths: ['12%', '20%', '10%', '14%', '11%', '11%', '12%', '10%'],
+            body: tableBody
+          },
+          layout: 'lightHorizontalLines'
+        },
+        getFooterLogo()
+      ],
+      defaultStyle: {
+        font: 'Helvetica',
+        fontSize: 9,
+        lineHeight: 1.4
+      },
+      styles: {
+        header: { fontSize: 18, bold: true },
+        subheader: { fontSize: 9, color: 'gray' },
+        title: { fontSize: 13, bold: true, decoration: 'underline' },
+        tableHeader: { bold: true, fillColor: '#EEEEEE' },
+        boldText: { bold: true }
+      }
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="vendor_payment_statement.pdf"');
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    await logAction(req.user.id, req.user.name, 'GENERATE_PDF', `Exported Vendor Payment Statement PDF`, ip);
+  } catch (error) {
+    console.error('Generate Vendor Payment Statement PDF error:', error);
+    res.status(500).json({ error: 'Server error generating PDF' });
+  }
+});
+
 module.exports = router;
+

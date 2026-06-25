@@ -407,9 +407,6 @@ const Vendors = () => {
                   <th className="px-6 py-4">Vendor Type</th>
                   <th className="px-6 py-4">Mobile</th>
                   <th className="px-6 py-4">Sarees Work Status</th>
-                  <th className="px-6 py-4">Work Total (Completed)</th>
-                  <th className="px-6 py-4">Paid Total</th>
-                  <th className="px-6 py-4">Pending</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -430,13 +427,6 @@ const Vendors = () => {
                           </span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">₹{vendor.total_work.toLocaleString('en-IN')}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">₹{vendor.total_paid.toLocaleString('en-IN')}</td>
-                    <td className="px-6 py-4 font-bold whitespace-nowrap">
-                      <span className={vendor.pending_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}>
-                        ₹{vendor.pending_balance.toLocaleString('en-IN')}
-                      </span>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                       <button
