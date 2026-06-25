@@ -93,6 +93,15 @@ router.get('/job-work-slip/:historyId', async (req, res) => {
       return res.status(404).json({ error: 'Job work history record not found' });
     }
 
+    // Find all history records for this saree to calculate sequential C.H NO suffix
+    const allHistory = await db('workflow_history')
+      .where({ saree_id: history.saree_id })
+      .orderBy('history_id', 'asc')
+      .select('history_id');
+
+    const recordIndex = allHistory.findIndex(h => h.history_id === parseInt(historyId));
+    const chSuffix = recordIndex !== -1 ? (recordIndex + 1) : 1;
+
     const docDefinition = {
       content: [
         { text: req.user.name.toUpperCase(), style: 'header', alignment: 'center' },
@@ -107,7 +116,7 @@ router.get('/job-work-slip/:historyId', async (req, res) => {
               { text: `Address: ${history.address || 'N/A'}` }
             ],
             [
-              { text: `Slip No: JWS-${history.history_id}`, style: 'boldText', alignment: 'right' },
+              { text: `Challan No: ${history.lot_number}.${chSuffix}`, style: 'boldText', alignment: 'right' },
               { text: `Sent Date: ${formatDate(history.sent_date)}`, alignment: 'right' },
               { text: `Status: PENDING WORK`, color: 'red', alignment: 'right', style: 'boldText' }
             ]

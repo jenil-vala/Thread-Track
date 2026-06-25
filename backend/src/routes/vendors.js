@@ -50,9 +50,9 @@ router.post('/', async (req, res) => {
   }
 
   // Validate vendor type
-  const validTypes = ['Dyed', 'Embroidery', 'Stitching', 'Diamond', 'Folding'];
+  const validTypes = ['Dyed', 'Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding'];
   if (!validTypes.includes(vendor_type)) {
-    return res.status(400).json({ error: 'Invalid vendor type. Must be Dyed, Embroidery, Stitching, Diamond, or Folding' });
+    return res.status(400).json({ error: 'Invalid vendor type. Must be Dyed, Dyeing/Print, Embroidery, Stitching, Diamond, or Folding' });
   }
 
   try {
@@ -98,7 +98,7 @@ router.put('/:id', async (req, res) => {
     const updates = {};
     if (vendor_name !== undefined) updates.vendor_name = vendor_name;
     if (vendor_type !== undefined) {
-      const validTypes = ['Dyed', 'Embroidery', 'Stitching', 'Diamond', 'Folding'];
+      const validTypes = ['Dyed', 'Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding'];
       if (!validTypes.includes(vendor_type)) {
         return res.status(400).json({ error: 'Invalid vendor type' });
       }

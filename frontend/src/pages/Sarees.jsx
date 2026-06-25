@@ -76,7 +76,7 @@ const Sarees = () => {
 
   // Send to Stage Form fields
   const [sendForm, setSendForm] = useState({
-    stage_name: 'Embroidery',
+    stage_name: 'Dyeing/Print',
     vendor_id: '',
     per_unit_rate: '',
     flat_cost: '',
@@ -199,7 +199,7 @@ const Sarees = () => {
   // Calculate estimated work cost for send form
   useEffect(() => {
     const qty = parseFloat(selectedSaree?.quantity || 0);
-    if (['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name)) {
+    if (['Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name)) {
       const rate = parseFloat(sendForm.per_unit_rate || 0);
       setEstimatedCost(qty * rate);
     } else {
@@ -210,7 +210,7 @@ const Sarees = () => {
   // Auto-select next stage based on selectedSaree current_stage
   useEffect(() => {
     if (selectedSaree) {
-      const stageOrder = ['Dyed', 'Embroidery', 'Stitching', 'Diamond', 'Folding', 'Completed'];
+      const stageOrder = ['Dyed', 'Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding', 'Completed'];
       const currentIndex = stageOrder.indexOf(selectedSaree.current_stage);
       if (currentIndex !== -1 && currentIndex < stageOrder.length - 1) {
         const nextStage = stageOrder[currentIndex + 1];
@@ -317,7 +317,7 @@ const Sarees = () => {
         vendor_id: parseInt(vendor_id),
         remarks: sendForm.remarks
       };
-      if (['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(stage_name)) {
+      if (['Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(stage_name)) {
         payload.per_unit_rate = parseFloat(sendForm.per_unit_rate);
       } else {
         payload.work_cost = estimatedCost;
@@ -326,7 +326,7 @@ const Sarees = () => {
       await api.post(`/sarees/${selectedSaree.saree_id}/send`, payload);
 
       setSendForm({
-        stage_name: 'Embroidery',
+        stage_name: 'Dyeing/Print',
         vendor_id: '',
         per_unit_rate: '',
         flat_cost: '',
@@ -436,6 +436,7 @@ const Sarees = () => {
   const getStageBadge = (stage) => {
     const colors = {
       Dyed: 'bg-amber-100 text-amber-800 border-amber-200',
+      'Dyeing/Print': 'bg-indigo-100 text-indigo-800 border-indigo-200',
       Embroidery: 'bg-purple-100 text-purple-800 border-purple-200',
       Stitching: 'bg-blue-100 text-blue-800 border-blue-200',
       Diamond: 'bg-sky-100 text-sky-800 border-sky-200',
@@ -488,6 +489,7 @@ const Sarees = () => {
         >
           <option value="">Any Stage</option>
           <option value="Dyed">Dyed Complete</option>
+          <option value="Dyeing/Print">Dyeing/Print</option>
           <option value="Embroidery">Embroidery</option>
           <option value="Stitching">Stitching</option>
           <option value="Diamond">Diamond</option>
@@ -1007,6 +1009,7 @@ const Sarees = () => {
                                 onChange={(e) => setSendForm(prev => ({ ...prev, stage_name: e.target.value }))}
                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none"
                               >
+                                <option value="Dyeing/Print">Dyeing/Print</option>
                                 <option value="Embroidery">Embroidery</option>
                                 <option value="Stitching">Stitching</option>
                                 <option value="Diamond">Diamond</option>
@@ -1032,7 +1035,7 @@ const Sarees = () => {
                             </div>
 
                             {/* Dynamic Cost Input based on stage type */}
-                            {['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) ? (
+                            {['Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) ? (
                               <div>
                                 <label className="block text-xs font-semibold text-slate-600 mb-2">
                                   {sendForm.stage_name === 'Embroidery' ? 'Per-Side rate (₹)' : `Per Saree ${sendForm.stage_name} Cost (₹)`}
@@ -1077,7 +1080,7 @@ const Sarees = () => {
                               />
                             </div>
                             <div className="text-right font-bold text-slate-800 text-sm mt-6">
-                              {['Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) && (
+                              {['Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding'].includes(sendForm.stage_name) && (
                                 <span className="block text-[10px] text-slate-400 normal-case mb-1">
                                   Formula: Qty * Rate
                                 </span>

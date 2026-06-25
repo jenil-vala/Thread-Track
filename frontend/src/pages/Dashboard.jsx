@@ -46,7 +46,7 @@ const Dashboard = () => {
 
   const { summary, pipeline } = data || {
     summary: { total_sarees_lots: 0, total_sarees_quantity: 0, total_outstanding_payable: 0, total_vendors: 0 },
-    pipeline: { Dyed: { count: 0, qty: 0 }, Embroidery: { count: 0, qty: 0 }, Stitching: { count: 0, qty: 0 }, Diamond: { count: 0, qty: 0 }, Folding: { count: 0, qty: 0 }, Completed: { count: 0, qty: 0 } }
+    pipeline: { Dyed: { count: 0, qty: 0 }, 'Dyeing/Print': { count: 0, qty: 0 }, Embroidery: { count: 0, qty: 0 }, Stitching: { count: 0, qty: 0 }, Diamond: { count: 0, qty: 0 }, Folding: { count: 0, qty: 0 }, Completed: { count: 0, qty: 0 } }
   };
 
   const statCards = [
@@ -79,6 +79,7 @@ const Dashboard = () => {
   // Pipeline order
   const stages = [
     { key: 'Dyed', label: 'Dyed', color: 'from-amber-400 to-amber-500' },
+    { key: 'Dyeing/Print', label: 'Dyeing/Print', color: 'from-indigo-400 to-indigo-500' },
     { key: 'Embroidery', label: 'Embroidery', color: 'from-purple-500 to-purple-600' },
     { key: 'Stitching', label: 'Stitching', color: 'from-blue-500 to-blue-600' },
     { key: 'Diamond', label: 'Diamond', color: 'from-sky-400 to-sky-500' },
@@ -89,6 +90,7 @@ const Dashboard = () => {
   const getStageBadge = (stage) => {
     const colors = {
       Dyed: 'bg-amber-100 text-amber-800 border-amber-200',
+      'Dyeing/Print': 'bg-indigo-100 text-indigo-800 border-indigo-200',
       Embroidery: 'bg-purple-100 text-purple-800 border-purple-200',
       Stitching: 'bg-blue-100 text-blue-800 border-blue-200',
       Diamond: 'bg-sky-100 text-sky-800 border-sky-200',

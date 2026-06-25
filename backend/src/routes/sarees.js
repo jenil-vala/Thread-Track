@@ -211,7 +211,7 @@ router.post('/', async (req, res) => {
 });
 
 // @route   POST /api/sarees/:id/send
-// @desc    Move Saree to next stage by sending it to a vendor (Step 2/3: Dyed -> Embroidery -> Stitching -> Diamond -> Folding)
+// @desc    Move Saree to next stage by sending it to a vendor (Step 2/3: Dyed -> Dyeing/Print -> Embroidery -> Stitching -> Diamond -> Folding)
 router.post('/:id/send', async (req, res) => {
   const sareeId = req.params.id;
   const { stage_name, vendor_id, work_cost, per_unit_rate, remarks } = req.body;
@@ -221,9 +221,9 @@ router.post('/:id/send', async (req, res) => {
   }
 
   // Validate stage name
-  const validStages = ['Embroidery', 'Stitching', 'Diamond', 'Folding'];
+  const validStages = ['Dyeing/Print', 'Embroidery', 'Stitching', 'Diamond', 'Folding'];
   if (!validStages.includes(stage_name)) {
-    return res.status(400).json({ error: 'Invalid stage. Must be Embroidery, Stitching, Diamond, or Folding' });
+    return res.status(400).json({ error: 'Invalid stage. Must be Dyeing/Print, Embroidery, Stitching, Diamond, or Folding' });
   }
 
   try {

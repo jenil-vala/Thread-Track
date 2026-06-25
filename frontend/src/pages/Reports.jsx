@@ -128,6 +128,7 @@ const Reports = () => {
           >
             <option value="">All Stages</option>
             <option value="Dyed">Dyed</option>
+            <option value="Dyeing/Print">Dyeing/Print</option>
             <option value="Embroidery">Embroidery</option>
             <option value="Stitching">Stitching</option>
             <option value="Diamond">Diamond</option>

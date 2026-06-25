@@ -345,6 +345,7 @@ const Vendors = () => {
           >
             <option value="">All Types</option>
             <option value="Dyed">Dyed</option>
+            <option value="Dyeing/Print">Dyeing/Print</option>
             <option value="Embroidery">Embroidery</option>
             <option value="Stitching">Stitching</option>
             <option value="Diamond">Diamond</option>
@@ -514,6 +515,7 @@ const Vendors = () => {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
                   >
                     <option value="Dyed">Dyed</option>
+                    <option value="Dyeing/Print">Dyeing/Print</option>
                     <option value="Embroidery">Embroidery</option>
                     <option value="Stitching">Stitching</option>
                     <option value="Diamond">Diamond</option>
@@ -909,6 +911,7 @@ const Vendors = () => {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
                   >
                     <option value="Dyed">Dyed</option>
+                    <option value="Dyeing/Print">Dyeing/Print</option>
                     <option value="Embroidery">Embroidery</option>
                     <option value="Stitching">Stitching</option>
                     <option value="Diamond">Diamond</option>

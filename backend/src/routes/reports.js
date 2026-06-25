@@ -31,9 +31,10 @@ router.get('/dashboard', async (req, res) => {
     const vendorCount = await db('vendors').count('vendor_id as count').first();
 
     // Formulate clean counts per stage for the pipeline view
-    // Stages: Dyed, Embroidery, Stitching, Diamond, Folding, Completed
+    // Stages: Dyed, Dyeing/Print, Embroidery, Stitching, Diamond, Folding, Completed
     const pipeline = {
       Dyed: { count: 0, qty: 0 },
+      'Dyeing/Print': { count: 0, qty: 0 },
       Embroidery: { count: 0, qty: 0 },
       Stitching: { count: 0, qty: 0 },
       Diamond: { count: 0, qty: 0 },
